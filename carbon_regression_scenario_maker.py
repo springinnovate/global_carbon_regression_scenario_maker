@@ -32,6 +32,7 @@ logging.getLogger('taskgraph').setLevel(logging.INFO)
 WORKSPACE_DIR = 'carbon_regression_scenario_workspace'
 ECOSHARD_DIR = os.path.join(WORKSPACE_DIR, 'ecoshard')
 CHURN_DIR = os.path.join(WORKSPACE_DIR, 'churn')
+DATA_DIR = os.path.join(WORKSPACE_DIR, 'data')
 
 CONVOLUTION_PIXEL_DIST_LIST = [1, 2, 3, 5, 10, 20, 30, 50, 100]
 
@@ -44,10 +45,11 @@ SCENARIO_LIST = [
     ('is_urban', URBAN_LULC_CODES, ''),
     ('not_forest', FOREST_CODES, 'inv')]
 
-BUCKET_ROOT = 'gs://ecoshard-root/global_carbon_regression'
+BASE_DATA_BUCKET_ROOT = 'gs://ecoshard-root/global_carbon_regression/inputs'
 LULC_URL_LIST = [
     'https://storage.googleapis.com/ecoshard-root/global_carbon_regression/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2014-v2.0.7_smooth_compressed.tif',
     'https://storage.googleapis.com/ecoshard-root/global_carbon_regression/PNV_jsmith_060420_md5_8dd464e0e23fefaaabe52e44aa296330.tif']
+
 
 
 def make_kernel_raster(pixel_radius, target_path):
@@ -87,13 +89,21 @@ def mask_ranges(base_raster_path, range_tuple, inverse, target_raster_path):
 
 def main():
     """Entry point."""
-    for dir_path in [WORKSPACE_DIR, ECOSHARD_DIR, CHURN_DIR]:
+    for dir_path in [WORKSPACE_DIR, ECOSHARD_DIR, CHURN_DIR, DATA_DIR]:
         try:
             os.makedirs(dir_path)
         except OSError:
             pass
 
     task_graph = taskgraph.TaskGraph(CHURN_DIR, N_CPUS, 5.0)
+
+    # download inputs
+    download_inputs_task = task_graph.add_task(
+        func=subprocess.run,
+        args=('gsutil cp -r %s %s' % (
+            BASE_DATA_BUCKET_ROOT, DATA_DIR),),
+        kwargs={'shell': True, 'check': True},
+        task_name='download inputs')
 
     lulc_scenario_raster_path_list = []
     dl_lulc_task_map = {}
