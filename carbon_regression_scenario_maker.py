@@ -100,7 +100,7 @@ def main():
     # download inputs
     download_inputs_task = task_graph.add_task(
         func=subprocess.run,
-        args=('gsutil cp -nr %s %s' % (
+        args=('/usr/local/gcloud-sdk/google-cloud-sdk/bin/gsutil cp -nr %s %s' % (
             BASE_DATA_BUCKET_ROOT, f'{DATA_DIR}/'),),
         kwargs={'shell': True, 'check': True},
         task_name='download inputs')
