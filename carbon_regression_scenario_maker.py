@@ -134,7 +134,7 @@ def main():
             task_name=f'download {lulc_url}')
         lulc_scenario_raster_path_list.append(lulc_raster_path)
 
-    scenario_mask = collections.defaultdict(dict)
+    scenario_mask_task_map = {}
 
     for lulc_scenario_raster_path in lulc_scenario_raster_path_list:
         lulc_basename = os.path.splitext(os.path.basename(
@@ -151,7 +151,7 @@ def main():
                     dl_lulc_task_map[lulc_scenario_raster_path]],
                 target_path_list=[scenario_lulc_mask_raster_path],
                 task_name=f'make {scenario_id}_{lulc_basename}')
-            scenario_mask[scenario_id][lulc_basename] = (
+            scenario_mask_task_map[scenario_id] = (
                 scenario_lulc_mask_raster_path, mask_task)
             LOGGER.debug(
                 f'this is the scenario lulc mask target: '
@@ -169,8 +169,9 @@ def main():
                 task_name=f'make kernel of radius {pixel_radius}')
             kernel_raster_path_map[pixel_radius] = kernel_raster_path
             convolution_task_list = []
-            for scenario_id in scenario_mask:
-                scenario_mask_path, mask_task = scenario_mask[scenario_id]
+            for scenario_id in scenario_mask_task_map:
+                scenario_mask_path, mask_task = \
+                    scenario_mask_task_map[scenario_id]
                 LOGGER.debug(
                     f'this is the scenario mask about to convolve: '
                     f'{scenario_mask_path} {mask_task}')
