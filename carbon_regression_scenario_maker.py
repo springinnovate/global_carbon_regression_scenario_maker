@@ -127,6 +127,7 @@ def main():
                 task_name=f'make {scenario_id}_{lulc_basename}')
             scenario_mask[scenario_id][lulc_basename] = (
                 scenario_lulc_mask_raster_path, mask_task)
+            LOGGER.debug(f'this is the scenario lulc mask target: {scenario_lulc_mask_raster_path}')
             break
         break
 
@@ -146,6 +147,7 @@ def main():
             for lulc_basename in scenario_mask[scenario_id]:
                 scenario_mask_path, mask_task = \
                     scenario_mask[scenario_id][lulc_basename]
+                LOGGER.debug(f'this is the scenario mask about to convolve: {scenario_mask_path} {mask_task}')
                 convolution_mask_raster_path = os.path.join(
                     CHURN_DIR,
                     f'convolution_{scenario_id}_{lulc_basename}.tif')
