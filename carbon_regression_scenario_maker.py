@@ -116,7 +116,7 @@ def main():
         func=subprocess.run,
         args=(
             f'/usr/local/gcloud-sdk/google-cloud-sdk/bin/gsutil cp -n '
-            f'{LASSO_TABLE_URI} {LASSO_TABLE_PATH}')
+            f'{LASSO_TABLE_URI} {LASSO_TABLE_PATH}'),
         kwargs={'shell': True, 'check': True},
         target_path_list=[LASSO_TABLE_PATH],
         task_name='download lasso table')
