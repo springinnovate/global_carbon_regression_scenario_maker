@@ -14,7 +14,7 @@ import taskgraph
 
 import justin_gaussian_kernel
 
-gdal.SetCacheMax(2**30)
+gdal.SetCacheMax(2**27)
 
 # treat this one column name as special for the y intercept
 N_CPUS = multiprocessing.cpu_count()
