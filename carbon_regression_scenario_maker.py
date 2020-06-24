@@ -159,9 +159,6 @@ def main():
 
         kernel_raster_path_map = {}
 
-        scenario_mult_workspace_dir = os.path.join(
-            WORKSPACE_DIR, lulc_basename)
-
         for pixel_radius in CONVOLUTION_PIXEL_DIST_LIST:
             kernel_raster_path = os.path.join(
                 CHURN_DIR, f'{pixel_radius}_kernel.tif')
@@ -177,7 +174,8 @@ def main():
                 LOGGER.debug(
                     f'this is the scenario mask about to convolve: '
                     f'{scenario_mask_path} {mask_task}')
-                # [base]_[mask_type]_gs[kernel_size]
+                # [base]_[mask_type]_[kernel_size]
+                [target_raster_id]_[mask_type]_[kernel_size].
                 convolution_mask_raster_path = os.path.join(
                     DATA_DIR,
                     f'{lulc_basename}_{scenario_id}_{pixel_radius}.tif')
@@ -190,14 +188,18 @@ def main():
                     target_path_list=[convolution_mask_raster_path],
                     task_name=f'convolve {scenario_id}_{lulc_basename}')
 
-        mult_by_columns_library.mult_by_columns(
-            LASSO_TABLE_PATH, DATA_DIR, scenario_mult_workspace_dir,
-            BASE_LASSO_CONVOLUTION_RASTER_NAME, None,
-            0.002777777777777777884)
-
-    mult_by_columns(
-        lasso_table_path, data_dir, workspace_dir, bounding_box, pixel_size,
-        BASE_LASSO_CONVOLUTION_RASTER_NAME, lulc_raster
+        target_result_path = os.path.join(
+            WORKSPACE_DIR, f'lasso_eval_{lulc_basename}.tif')
+        lasso_mult_workspace_dir = os.path.join(
+            WORKSPACE_DIR, lulc_basename)
+        task_graph.add_task(
+            func=mult_by_columns_library.mult_by_columns,
+            args=(
+                LASSO_TABLE_PATH, DATA_DIR, lasso_mult_workspace_dir,
+                BASE_LASSO_CONVOLUTION_RASTER_NAME, target_raster_id, None,
+                0.002777777777777777884, target_result_path),
+            target_path_list=[target_result_path],
+            task_name=f'lasso eval of {target_raster_id}')
 
     task_graph.close()
     task_graph.join()

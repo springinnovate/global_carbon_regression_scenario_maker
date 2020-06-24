@@ -11,7 +11,7 @@ import pygeoprocessing
 import numpy
 import taskgraph
 
-gdal.SetCacheMax(2**30)
+gdal.SetCacheMax(2**27)
 
 # treat this one column name as special for the y intercept
 INTERCEPT_COLUMN_ID = 'intercept'
@@ -102,7 +102,8 @@ def raster_rpn_calculator_op(*args_list):
 
 def mult_by_columns(
         lasso_table_path, data_dir, workspace_dir,
-        base_convolution_raster_id, target_raster_id, bounding_box, pixel_size,
+        base_convolution_raster_id, target_raster_id, bounding_box,
+        pixel_size, target_result_path,
         zero_nodata=False, target_nodata=numpy.finfo('float32').min):
     """Calculate large regression.
 
@@ -122,6 +123,7 @@ def mult_by_columns(
             of four  consecutive floats: "min_lng, min_lat, max_lng,
             max_lat, ex: " "-180.0, -58.3, 180.0, 81.5".
         pixel_size (float): desired target pixel size in raster units
+        target_result_path (str): path to desired output raster
         zero_nodata (bool): if True, present, treat nodata values as 0, if
             absent any nodata pixel in a stack will cause the output pixel to
             be nodata
@@ -284,9 +286,8 @@ def mult_by_columns(
     task_graph.close()
     task_graph.join()
 
-    result_path = os.path.join(workspace_dir, 'result.tif')
     LOGGER.debug(raster_path_band_list)
     pygeoprocessing.raster_calculator(
-        raster_path_band_list, raster_rpn_calculator_op, result_path,
+        raster_path_band_list, raster_rpn_calculator_op, target_result_path,
         gdal.GDT_Float32, float(target_nodata))
     LOGGER.debug('all done')
