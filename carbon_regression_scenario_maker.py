@@ -127,6 +127,8 @@ def main():
                 task_name=f'make {scenario_id}_{lulc_basename}')
             scenario_mask[scenario_id][lulc_basename] = (
                 scenario_lulc_mask_raster_path, mask_task)
+            break
+        break
 
     kernel_raster_path_map = {}
 
@@ -155,6 +157,8 @@ def main():
                     dependent_task_list=[mask_task, kernel_task],
                     target_path_list=[convolution_mask_raster_path],
                     task_name=f'convolve {scenario_id}_{lulc_basename}')
+                break
+            break
 
     task_graph.close()
     task_graph.join()
