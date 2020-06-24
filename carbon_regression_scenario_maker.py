@@ -150,7 +150,7 @@ def main():
                 LOGGER.debug(f'this is the scenario mask about to convolve: {scenario_mask_path} {mask_task}')
                 convolution_mask_raster_path = os.path.join(
                     CHURN_DIR,
-                    f'convolution_{scenario_id}_{lulc_basename}.tif')
+                    f'convolution_{scenario_id}_{lulc_basename}_{pixel_radius}.tif')
                 task_graph.add_task(
                     func=pygeoprocessing.convolve_2d,
                     args=(
@@ -161,6 +161,7 @@ def main():
                     task_name=f'convolve {scenario_id}_{lulc_basename}')
                 break
             break
+        break
 
     task_graph.close()
     task_graph.join()
