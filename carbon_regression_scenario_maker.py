@@ -46,9 +46,8 @@ SCENARIO_LIST = [
 
 BUCKET_ROOT = 'gs://ecoshard-root/global_carbon_regression'
 LULC_URL_LIST = [
-    'https://storage.cloud.google.com/ecoshard-root/global_carbon_regression/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2014-v2.0.7_smooth_compressed.tif',
-    'https://storage.cloud.google.com/ecoshard-root/global_carbon_regression/PNV_jsmith_060420_md5_8dd464e0e23fefaaabe52e44aa296330.tif']
-
+    'https://storage.googleapis.co/ecoshard-root/global_carbon_regression/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2014-v2.0.7_smooth_compressed.tif',
+    'https://storage.googleapis.co/ecoshard-root/global_carbon_regression/PNV_jsmith_060420_md5_8dd464e0e23fefaaabe52e44aa296330.tif']
 
 def make_kernel_raster(pixel_radius, target_path):
     """Create kernel with given radius to `target_path`."""
@@ -87,11 +86,12 @@ def mask_ranges(base_raster_path, range_tuple, inverse, target_raster_path):
 
 def main():
     """Entry point."""
-    task_graph = taskgraph.TaskGraph(CHURN_DIR, N_CPUS, 5.0)
+    task_graph = taskgraph.TaskGraph(CHURN_DIR, -1, 5.0)
 
     lulc_scenario_raster_path_list = []
     dl_lulc_task_map = {}
     for lulc_url in LULC_URL_LIST:
+        LOGGER.debug(f'download {lulc_url}')
         lulc_raster_path = os.path.join(
             ECOSHARD_DIR, os.path.basename(lulc_url))
         dl_lulc_task_map[lulc_raster_path] = task_graph.add_task(
