@@ -1,9 +1,9 @@
 """Create carbon regression scenarios."""
-import argparse
 import collections
 import logging
 import multiprocessing
 import os
+import subprocess
 import sys
 
 from osgeo import gdal
