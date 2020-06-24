@@ -45,7 +45,7 @@ SCENARIO_LIST = [
     ('is_urban', URBAN_LULC_CODES, ''),
     ('not_forest', FOREST_CODES, 'inv')]
 
-BASE_DATA_BUCKET_ROOT = 'gs://ecoshard-root/global_carbon_regression/inputs'
+BASE_DATA_BUCKET_ROOT = 'gs://ecoshard-root/global_carbon_regression/inputs/'
 LULC_URL_LIST = [
     'https://storage.googleapis.com/ecoshard-root/global_carbon_regression/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2014-v2.0.7_smooth_compressed.tif',
     'https://storage.googleapis.com/ecoshard-root/global_carbon_regression/PNV_jsmith_060420_md5_8dd464e0e23fefaaabe52e44aa296330.tif']
@@ -101,7 +101,7 @@ def main():
     download_inputs_task = task_graph.add_task(
         func=subprocess.run,
         args=('gsutil cp -r %s %s' % (
-            BASE_DATA_BUCKET_ROOT, DATA_DIR),),
+            BASE_DATA_BUCKET_ROOT, f'{DATA_DIR}/'),),
         kwargs={'shell': True, 'check': True},
         task_name='download inputs')
 
