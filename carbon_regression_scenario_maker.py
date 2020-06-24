@@ -6,15 +6,13 @@ import multiprocessing
 import os
 import sys
 
-from osgeo import osr
 from osgeo import gdal
 import ecoshard
-import pandas
 import pygeoprocessing
 import numpy
 import taskgraph
 
-from . import justin_gaussian_kernel
+import justin_gaussian_kernel
 
 gdal.SetCacheMax(2**30)
 
@@ -47,10 +45,9 @@ SCENARIO_LIST = [
     ('not_forest', FOREST_CODES, 'inv')]
 
 BUCKET_ROOT = 'gs://ecoshard-root/global_carbon_regression'
-
-LULC_URI_LIST = [
-    'gs://ecoshard-root/global_carbon_regression/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2014-v2.0.7_smooth_compressed.tif',
-    'gs://ecoshard-root/global_carbon_regression/PNV_jsmith_060420_md5_8dd464e0e23fefaaabe52e44aa296330.tif']
+LULC_URL_LIST = [
+    'https://storage.cloud.google.com/ecoshard-root/global_carbon_regression/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2014-v2.0.7_smooth_compressed.tif',
+    'https://storage.cloud.google.com/ecoshard-root/global_carbon_regression/PNV_jsmith_060420_md5_8dd464e0e23fefaaabe52e44aa296330.tif']
 
 
 def make_kernel_raster(pixel_radius, target_path):
@@ -62,10 +59,13 @@ def make_kernel_raster(pixel_radius, target_path):
         target_path)
 
 
-def _mask_vals_op(array, nodata, mask_val_array, inverse, target_nodata):
+def _mask_vals_op(array, nodata, valid_1d_array, inverse, target_nodata):
     result = numpy.zeros(array.shape, dtype=numpy.uint8)
-    nodata_mask = numpy.isclose(array, nodata)
-    valid_mask = numpy.in1d(array, mask_val_array).reshape(result.shape)
+    if nodata is not None:
+        nodata_mask = numpy.isclose(array, nodata)
+    else:
+        nodata_mask = numpy.zeros(array.shape, dtype=numpy.bool)
+    valid_mask = numpy.in1d(array, valid_1d_array).reshape(result.shape)
     if inverse:
         valid_mask = ~valid_mask
     result[valid_mask & ~nodata_mask] = 1
@@ -73,30 +73,32 @@ def _mask_vals_op(array, nodata, mask_val_array, inverse, target_nodata):
     return result
 
 
-def mask_ranges(base_raster_path, range_tuple, target_raster_path):
+def mask_ranges(base_raster_path, range_tuple, inverse, target_raster_path):
     """Mask all values in the given inclusive range to 1, the rest to 0."""
     base_nodata = pygeoprocessing.get_raster_info(
         base_raster_path)['nodata'][0]
     target_nodata = 2
     pygeoprocessing.raster_calculator(
         [(base_raster_path, 1), (base_nodata, 'raw'),
-         (range_tuple, 'raw'), (target_nodata, 'raw')], _mask_vals_op,
+         (range_tuple, 'raw'), (inverse, 'raw'),
+         (target_nodata, 'raw')], _mask_vals_op,
         target_raster_path, gdal.GDT_Byte, target_nodata)
 
 
 def main():
     """Entry point."""
-    task_graph = taskgraph.TaskGraph(CHURN_DIR, -1, 5.0)
+    task_graph = taskgraph.TaskGraph(CHURN_DIR, N_CPUS, 5.0)
 
     lulc_scenario_raster_path_list = []
-    for lulc_uri in LULC_URI_LIST:
+    dl_lulc_task_map = {}
+    for lulc_url in LULC_URL_LIST:
         lulc_raster_path = os.path.join(
-            ECOSHARD_DIR, os.path.basename(lulc_uri))
-        _ = task_graph.add_task(
-            func=ecoshard.copy_to_bucket,
-            args=(lulc_uri, lulc_raster_path),
+            ECOSHARD_DIR, os.path.basename(lulc_url))
+        dl_lulc_task_map[lulc_raster_path] = task_graph.add_task(
+            func=ecoshard.download_url,
+            args=(lulc_url, lulc_raster_path),
             target_path_list=[lulc_raster_path],
-            task_name=f'download {lulc_uri}')
+            task_name=f'download {lulc_url}')
         lulc_scenario_raster_path_list.append(lulc_raster_path)
 
     scenario_mask = collections.defaultdict(dict)
@@ -107,15 +109,17 @@ def main():
         for scenario_id, lulc_codes, inverse_mode in SCENARIO_LIST:
             scenario_lulc_mask_raster_path = os.path.join(
                 CHURN_DIR, f'{scenario_id}_{lulc_basename}.tif')
-            _ = task_graph.add_task(
+            mask_task = task_graph.add_task(
                 func=mask_ranges,
                 args=(
                     lulc_scenario_raster_path, lulc_codes,
-                    scenario_lulc_mask_raster_path),
+                    inverse_mode == 'inv', scenario_lulc_mask_raster_path),
+                dependent_task_list=[
+                    dl_lulc_task_map[lulc_scenario_raster_path]],
                 target_path_list=[scenario_lulc_mask_raster_path],
                 task_name=f'make {scenario_id}_{lulc_basename}')
             scenario_mask[scenario_id][lulc_basename] = (
-                scenario_lulc_mask_raster_path)
+                scenario_lulc_mask_raster_path, mask_task)
 
     kernel_raster_path_map = {}
 
@@ -131,7 +135,7 @@ def main():
 
         for scenario_id in scenario_mask:
             for lulc_basename in scenario_mask[scenario_id]:
-                scenario_mask_path = \
+                scenario_mask_path, mask_task = \
                     scenario_mask[scenario_id][lulc_basename]
                 convolution_mask_raster_path = os.path.join(
                     CHURN_DIR,
@@ -141,6 +145,7 @@ def main():
                     args=(
                         (scenario_mask_path, 1), (kernel_raster_path, 1),
                         convolution_mask_raster_path),
+                    dependent_task_list=[mask_task],
                     target_path_list=[convolution_mask_raster_path],
                     task_name=f'convolve {scenario_id}_{lulc_basename}')
 
