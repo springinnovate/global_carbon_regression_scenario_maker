@@ -133,7 +133,7 @@ def main():
     for pixel_radius in CONVOLUTION_PIXEL_DIST_LIST:
         kernel_raster_path = os.path.join(
             CHURN_DIR, f'{pixel_radius}_kernel.tif')
-        _ = task_graph.add_task(
+        kernel_task = task_graph.add_task(
             func=make_kernel_raster,
             args=(pixel_radius, kernel_raster_path),
             target_path_list=[kernel_raster_path],
@@ -152,7 +152,7 @@ def main():
                     args=(
                         (scenario_mask_path, 1), (kernel_raster_path, 1),
                         convolution_mask_raster_path),
-                    dependent_task_list=[mask_task],
+                    dependent_task_list=[mask_task, kernel_task],
                     target_path_list=[convolution_mask_raster_path],
                     task_name=f'convolve {scenario_id}_{lulc_basename}')
 
