@@ -33,7 +33,7 @@ WORKSPACE_DIR = 'carbon_regression_scenario_workspace'
 ECOSHARD_DIR = os.path.join(WORKSPACE_DIR, 'ecoshard')
 CHURN_DIR = os.path.join(WORKSPACE_DIR, 'churn')
 
-CONVOLUTION_PIXEL_DIST_LIST = [1, 3, 5, 10, 30, 50, 100]
+CONVOLUTION_PIXEL_DIST_LIST = [1, 2, 3, 5, 10, 20, 30, 50, 100]
 
 CROPLAND_LULC_CODES = range(10, 41)
 URBAN_LULC_CODES = (190,)
@@ -128,8 +128,6 @@ def main():
             scenario_mask[scenario_id][lulc_basename] = (
                 scenario_lulc_mask_raster_path, mask_task)
             LOGGER.debug(f'this is the scenario lulc mask target: {scenario_lulc_mask_raster_path}')
-            break
-        break
 
     kernel_raster_path_map = {}
 
@@ -159,9 +157,6 @@ def main():
                     dependent_task_list=[mask_task, kernel_task],
                     target_path_list=[convolution_mask_raster_path],
                     task_name=f'convolve {scenario_id}_{lulc_basename}')
-                break
-            break
-        break
 
     task_graph.close()
     task_graph.join()
