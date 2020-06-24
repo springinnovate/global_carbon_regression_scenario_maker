@@ -55,7 +55,7 @@ def make_kernel_raster(pixel_radius, target_path):
     kernel_array = justin_gaussian_kernel.get_array_from_two_dim_first_order_kernel_function(
         pixel_radius, 1, 5)
     pygeoprocessing.numpy_array_to_raster(
-        kernel_array, None, (1., -1.), (0.,  0.), None,
+        kernel_array, -1, (1., -1.), (0.,  0.), None,
         target_path)
 
 
