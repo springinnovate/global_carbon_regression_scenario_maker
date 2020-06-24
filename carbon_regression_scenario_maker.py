@@ -93,7 +93,7 @@ def main():
         except OSError:
             pass
 
-    task_graph = taskgraph.TaskGraph(CHURN_DIR, N_CPUS, 5.0)
+    task_graph = taskgraph.TaskGraph(CHURN_DIR, -1, 5.0)
 
     lulc_scenario_raster_path_list = []
     dl_lulc_task_map = {}
