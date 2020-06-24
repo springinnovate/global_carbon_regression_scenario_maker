@@ -168,18 +168,16 @@ def main():
                 target_path_list=[kernel_raster_path],
                 task_name=f'make kernel of radius {pixel_radius}')
             kernel_raster_path_map[pixel_radius] = kernel_raster_path
-
+            convolution_task_list = []
             for scenario_id in scenario_mask:
                 scenario_mask_path, mask_task = scenario_mask[scenario_id]
                 LOGGER.debug(
                     f'this is the scenario mask about to convolve: '
                     f'{scenario_mask_path} {mask_task}')
-                # [base]_[mask_type]_[kernel_size]
-                [target_raster_id]_[mask_type]_[kernel_size].
                 convolution_mask_raster_path = os.path.join(
                     DATA_DIR,
                     f'{lulc_basename}_{scenario_id}_{pixel_radius}.tif')
-                task_graph.add_task(
+                convolution_task = task_graph.add_task(
                     func=pygeoprocessing.convolve_2d,
                     args=(
                         (scenario_mask_path, 1), (kernel_raster_path, 1),
@@ -187,6 +185,7 @@ def main():
                     dependent_task_list=[mask_task, kernel_task],
                     target_path_list=[convolution_mask_raster_path],
                     task_name=f'convolve {scenario_id}_{lulc_basename}')
+                convolution_task_list.append(convolution_task)
 
         target_result_path = os.path.join(
             WORKSPACE_DIR, f'lasso_eval_{lulc_basename}.tif')
@@ -196,10 +195,12 @@ def main():
             func=mult_by_columns_library.mult_by_columns,
             args=(
                 LASSO_TABLE_PATH, DATA_DIR, lasso_mult_workspace_dir,
-                BASE_LASSO_CONVOLUTION_RASTER_NAME, target_raster_id, None,
+                BASE_LASSO_CONVOLUTION_RASTER_NAME, lulc_basename, None,
                 0.002777777777777777884, target_result_path),
+            dependent_task_list=convolution_task_list + [
+                download_inputs_task, download_lasso_task],
             target_path_list=[target_result_path],
-            task_name=f'lasso eval of {target_raster_id}')
+            task_name=f'lasso eval of {lulc_basename}')
 
     task_graph.close()
     task_graph.join()
