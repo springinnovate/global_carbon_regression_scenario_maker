@@ -49,6 +49,7 @@ LULC_URL_LIST = [
     'https://storage.googleapis.com/ecoshard-root/global_carbon_regression/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2014-v2.0.7_smooth_compressed.tif',
     'https://storage.googleapis.com/ecoshard-root/global_carbon_regression/PNV_jsmith_060420_md5_8dd464e0e23fefaaabe52e44aa296330.tif']
 
+
 def make_kernel_raster(pixel_radius, target_path):
     """Create kernel with given radius to `target_path`."""
     kernel_array = justin_gaussian_kernel.get_array_from_two_dim_first_order_kernel_function(
@@ -86,6 +87,12 @@ def mask_ranges(base_raster_path, range_tuple, inverse, target_raster_path):
 
 def main():
     """Entry point."""
+    for dir_path in [WORKSPACE_DIR, ECOSHARD_DIR, CHURN_DIR]:
+        try:
+            os.makedirs(dir_path)
+        except OSError:
+            pass
+
     task_graph = taskgraph.TaskGraph(CHURN_DIR, N_CPUS, 5.0)
 
     lulc_scenario_raster_path_list = []
