@@ -51,7 +51,7 @@ LULC_URL_LIST = [
     'https://storage.googleapis.com/ecoshard-root/global_carbon_regression/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2014-v2.0.7_smooth_compressed.tif',
     'https://storage.googleapis.com/ecoshard-root/global_carbon_regression/PNV_jsmith_060420_md5_8dd464e0e23fefaaabe52e44aa296330.tif']
 
-LASSO_TABLE_URI = 'https://storage.googleapis.com/ecoshard-root/global_carbon_regression/lasso_interacted_not_forest_gs1to100_nonlinear_alpha0-0001_params_namefix.csv'
+LASSO_TABLE_URI = 'gs://ecoshard-root/global_carbon_regression/lasso_interacted_not_forest_gs1to100_nonlinear_alpha0-0001_params_namefix.csv'
 LASSO_TABLE_PATH = os.path.join(
     ECOSHARD_DIR, os.path.basename(LASSO_TABLE_URI))
 # The following is the base in the pattern found in the lasso table
