@@ -13,6 +13,7 @@ import numpy
 import taskgraph
 
 import justin_gaussian_kernel
+import mult_by_columns_library
 
 gdal.SetCacheMax(2**27)
 
@@ -50,7 +51,12 @@ LULC_URL_LIST = [
     'https://storage.googleapis.com/ecoshard-root/global_carbon_regression/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2014-v2.0.7_smooth_compressed.tif',
     'https://storage.googleapis.com/ecoshard-root/global_carbon_regression/PNV_jsmith_060420_md5_8dd464e0e23fefaaabe52e44aa296330.tif']
 
-
+LASSO_TABLE_URI = 'https://storage.googleapis.com/ecoshard-root/global_carbon_regression/lasso_interacted_not_forest_gs1to100_nonlinear_alpha0-0001_params_namefix.csv'
+LASSO_TABLE_PATH = os.path.join(
+    ECOSHARD_DIR, os.path.basename(LASSO_TABLE_URI))
+# The following is the base in the pattern found in the lasso table
+# [base]_[mask_type]_gs[kernel_size]
+BASE_LASSO_CONVOLUTION_RASTER_NAME = 'lulc_esa_smoothed_2014_10sec'
 
 def make_kernel_raster(pixel_radius, target_path):
     """Create kernel with given radius to `target_path`."""
@@ -105,6 +111,16 @@ def main():
         kwargs={'shell': True, 'check': True},
         task_name='download inputs')
 
+    # download lasso table
+    download_lasso_task = task_graph.add_task(
+        func=subprocess.run,
+        args=(
+            f'/usr/local/gcloud-sdk/google-cloud-sdk/bin/gsutil cp -n '
+            f'{LASSO_TABLE_URI} {LASSO_TABLE_PATH}')
+        kwargs={'shell': True, 'check': True},
+        target_path_list=[LASSO_TABLE_PATH],
+        task_name='download lasso table')
+
     lulc_scenario_raster_path_list = []
     dl_lulc_task_map = {}
     for lulc_url in LULC_URL_LIST:
@@ -137,28 +153,34 @@ def main():
                 task_name=f'make {scenario_id}_{lulc_basename}')
             scenario_mask[scenario_id][lulc_basename] = (
                 scenario_lulc_mask_raster_path, mask_task)
-            LOGGER.debug(f'this is the scenario lulc mask target: {scenario_lulc_mask_raster_path}')
+            LOGGER.debug(
+                f'this is the scenario lulc mask target: '
+                f'{scenario_lulc_mask_raster_path}')
 
-    kernel_raster_path_map = {}
+        kernel_raster_path_map = {}
 
-    for pixel_radius in CONVOLUTION_PIXEL_DIST_LIST:
-        kernel_raster_path = os.path.join(
-            CHURN_DIR, f'{pixel_radius}_kernel.tif')
-        kernel_task = task_graph.add_task(
-            func=make_kernel_raster,
-            args=(pixel_radius, kernel_raster_path),
-            target_path_list=[kernel_raster_path],
-            task_name=f'make kernel of radius {pixel_radius}')
-        kernel_raster_path_map[pixel_radius] = kernel_raster_path
+        scenario_mult_workspace_dir = os.path.join(
+            WORKSPACE_DIR, lulc_basename)
 
-        for scenario_id in scenario_mask:
-            for lulc_basename in scenario_mask[scenario_id]:
-                scenario_mask_path, mask_task = \
-                    scenario_mask[scenario_id][lulc_basename]
-                LOGGER.debug(f'this is the scenario mask about to convolve: {scenario_mask_path} {mask_task}')
+        for pixel_radius in CONVOLUTION_PIXEL_DIST_LIST:
+            kernel_raster_path = os.path.join(
+                CHURN_DIR, f'{pixel_radius}_kernel.tif')
+            kernel_task = task_graph.add_task(
+                func=make_kernel_raster,
+                args=(pixel_radius, kernel_raster_path),
+                target_path_list=[kernel_raster_path],
+                task_name=f'make kernel of radius {pixel_radius}')
+            kernel_raster_path_map[pixel_radius] = kernel_raster_path
+
+            for scenario_id in scenario_mask:
+                scenario_mask_path, mask_task = scenario_mask[scenario_id]
+                LOGGER.debug(
+                    f'this is the scenario mask about to convolve: '
+                    f'{scenario_mask_path} {mask_task}')
+                # [base]_[mask_type]_gs[kernel_size]
                 convolution_mask_raster_path = os.path.join(
-                    CHURN_DIR,
-                    f'convolution_{scenario_id}_{lulc_basename}_{pixel_radius}.tif')
+                    DATA_DIR,
+                    f'{lulc_basename}_{scenario_id}_{pixel_radius}.tif')
                 task_graph.add_task(
                     func=pygeoprocessing.convolve_2d,
                     args=(
@@ -167,6 +189,15 @@ def main():
                     dependent_task_list=[mask_task, kernel_task],
                     target_path_list=[convolution_mask_raster_path],
                     task_name=f'convolve {scenario_id}_{lulc_basename}')
+
+        mult_by_columns_library.mult_by_columns(
+            LASSO_TABLE_PATH, DATA_DIR, scenario_mult_workspace_dir,
+            BASE_LASSO_CONVOLUTION_RASTER_NAME, None,
+            0.002777777777777777884)
+
+    mult_by_columns(
+        lasso_table_path, data_dir, workspace_dir, bounding_box, pixel_size,
+        BASE_LASSO_CONVOLUTION_RASTER_NAME, lulc_raster
 
     task_graph.close()
     task_graph.join()

@@ -2,6 +2,7 @@
 import logging
 import multiprocessing
 import os
+import re
 import sys
 
 from osgeo import gdal
@@ -99,10 +100,10 @@ def raster_rpn_calculator_op(*args_list):
     return result
 
 
-
 def mult_by_columns(
-        lasso_table_path, data_dir, workspace_dir, bounding_box, pixel_size,
-        zero_nodata, target_nodata):
+        lasso_table_path, data_dir, workspace_dir,
+        base_convolution_raster_id, target_raster_id, bounding_box, pixel_size,
+        zero_nodata=False, target_nodata=numpy.finfo('float32').min):
     """Calculate large regression.
 
     Args:
@@ -111,6 +112,12 @@ def mult_by_columns(
             table path
         workspace_dir (str): path to output directory, will contain
             "result.tif" after completion
+        base_convolution_raster_id (str): The convolution columns in
+            the lasso table have the form  [base]_[mask_type]_gs[kernel_size],
+            this parameter matches [base] so it can be replaced with a
+            filename of the form [target_raster_id]_[mask_type]_[kernel_size].
+        target_raster_id (str): this is the base of the target raster that
+            to use in the table.
         bounding_box (list): If not `None`, manual bounding box in the form
             of four  consecutive floats: "min_lng, min_lat, max_lng,
             max_lat, ex: " "-180.0, -58.3, 180.0, 81.5".
@@ -146,7 +153,14 @@ def mult_by_columns(
             # split out all the multiplcation terms
             product_list = header.split('*')
             for product in product_list:
-                # for each multiplcation term split out an exponent if exists
+                if product.startswith(base_convolution_raster_id):
+                    match = re.match(
+                        fr'{base_convolution_raster_id}_(.*)_gs(\d+)(\*.*)',
+                        product)
+                    mask_id, kernel_size, suffix = match.groups()
+                    product = \
+                        f'{target_raster_id}_{mask_id}_{kernel_size}{suffix}'
+                # for each multiplication term split out an exponent if exists
                 if '^' in product:
                     rpn_stack.extend(product.split('^'))
                     # cast the exponent to an integer so can operate directly
