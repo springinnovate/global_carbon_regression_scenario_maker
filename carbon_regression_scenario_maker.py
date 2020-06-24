@@ -104,7 +104,6 @@ def main():
             BASE_DATA_BUCKET_ROOT, f'{DATA_DIR}/'),),
         kwargs={'shell': True, 'check': True},
         task_name='download inputs')
-    download_inputs_task.join()
 
     lulc_scenario_raster_path_list = []
     dl_lulc_task_map = {}
