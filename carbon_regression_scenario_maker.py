@@ -10,9 +10,9 @@ from osgeo import gdal
 import ecoshard
 import pygeoprocessing
 import numpy
+import scipy.ndimage
 import taskgraph
 
-import justin_gaussian_kernel
 import mult_by_columns_library
 
 gdal.SetCacheMax(2**27)
@@ -58,10 +58,16 @@ LASSO_TABLE_PATH = os.path.join(
 # [base]_[mask_type]_gs[kernel_size]
 BASE_LASSO_CONVOLUTION_RASTER_NAME = 'lulc_esa_smoothed_2014_10sec'
 
+
 def make_kernel_raster(pixel_radius, target_path):
     """Create kernel with given radius to `target_path`."""
-    kernel_array = justin_gaussian_kernel.get_array_from_two_dim_first_order_kernel_function(
-        pixel_radius, 1, 5)
+    truncate = 4
+    size = int(pixel_radius * 2 * truncate + 1)
+    step_fn = numpy.zeros((size, size))
+    step_fn[size//2, size//2] = 1
+    kernel_array = scipy.ndimage.filters.gaussian_filter(
+        step_fn, pixel_radius, order=0, mode='reflect', cval=0.0,
+        truncate=truncate)
     pygeoprocessing.numpy_array_to_raster(
         kernel_array, -1, (1., -1.), (0.,  0.), None,
         target_path)
