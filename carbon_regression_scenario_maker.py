@@ -191,7 +191,7 @@ def main():
                         convolution_mask_raster_path),
                     dependent_task_list=[mask_task, kernel_task],
                     target_path_list=[convolution_mask_raster_path],
-                    task_name=f'convolve {scenario_id}_{lulc_basename}')
+                    task_name=f'convolve {pixel_radius} {scenario_id}_{lulc_basename}')
                 convolution_task_list.append(convolution_task)
 
         target_result_path = os.path.join(
