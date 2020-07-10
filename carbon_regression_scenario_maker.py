@@ -179,6 +179,9 @@ def fetch_data(bounding_box, clipped_data_dir):
         'gs://ecoshard-root/global_carbon_regression/inputs'],
         shell=True).decode('utf-8').splitlines()
 
+    LOGGER.debug(f'here are the files to download: {files_to_download}')
+    os.exit(-1)
+
     for file_uri in files_to_download:
         _ = task_graph.add_task(
             func=download_and_clip,
