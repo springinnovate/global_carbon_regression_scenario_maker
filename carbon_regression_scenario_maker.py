@@ -260,7 +260,7 @@ def main():
     bounding_box_str = ','.join([str(x) for x in args.bounding_box])
     clipped_data_dir = os.path.join(DATA_DIR, bounding_box_str)
     # Step 0: Download data
-    task_graph = taskgraph.TaskGraph(CHURN_DIR, args.n_cpus, 5.0)
+    task_graph = taskgraph.TaskGraph(CHURN_DIR, args.n_workers, 5.0)
     LOGGER.info("Step 0: Download data")
     fetch_data(args.bounding_box, clipped_data_dir, task_graph)
 
