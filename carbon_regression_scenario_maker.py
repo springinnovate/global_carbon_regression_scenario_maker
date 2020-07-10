@@ -241,7 +241,7 @@ def main():
     parser.add_argument(
         '--keyfile', help='path to keyfile that authorizes bucket access')
     parser.add_argument(
-        '--n_worksers', default=multiprocessing.cpu_count()
+        '--n_workers', default=multiprocessing.cpu_count(),
         help='how many workers to allocate to taskgraph')
     args = parser.parse_args()
 
