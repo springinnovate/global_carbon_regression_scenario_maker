@@ -167,7 +167,7 @@ def download_and_clip(file_uri, download_dir, bounding_box, target_file_path):
 
 def fetch_data(bounding_box, clipped_data_dir):
     """Download all the global data needed to run this analysis."""
-    task_graph = taskgraph.TaskGraph(CHURN_DIR, N_CPUS, 5.0)
+    task_graph = taskgraph.TaskGraph(CHURN_DIR, -1, 5.0)
 
     files_to_download = subprocess.check_output([
         '/usr/local/gcloud-sdk/google-cloud-sdk/bin/gsutil ls '
