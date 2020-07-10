@@ -230,8 +230,15 @@ def main():
             "manual bounding box in the form of four consecutive floats: "
             "min_lng, min_lat, max_lng, max_lat, ex: "
             "-180.0, -58.3, 180.0, 81.5"))
-
+    parser.add_argument(
+        '--keyfile', help='path to keyfile that authorizes bucket access')
     args = parser.parse_args()
+
+    if args.keyfile:
+        subprocess.run(
+            f'/usr/local/gcloud-sdk/google-cloud-sdk/bin/gcloud auth '
+            f'activate-service-account --key-file={args.keyfile}',
+            shell=True, check=True)
 
     for dir_path in [WORKSPACE_DIR, ECOSHARD_DIR, CHURN_DIR, DATA_DIR]:
         try:
