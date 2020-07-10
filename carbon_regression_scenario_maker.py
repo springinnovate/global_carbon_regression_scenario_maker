@@ -17,9 +17,6 @@ import mult_by_columns_library
 
 gdal.SetCacheMax(2**27)
 
-# treat this one column name as special for the y intercept
-N_CPUS = multiprocessing.cpu_count()
-
 logging.basicConfig(
     level=logging.DEBUG,
     format=(
@@ -165,10 +162,19 @@ def download_and_clip(file_uri, download_dir, bounding_box, target_file_path):
         os.link(base_file_path, target_file_path)
 
 
-def fetch_data(bounding_box, clipped_data_dir):
-    """Download all the global data needed to run this analysis."""
-    task_graph = taskgraph.TaskGraph(CHURN_DIR, -1, 5.0)
+def fetch_data(bounding_box, clipped_data_dir, task_graph):
+    """Download all the global data needed to run this analysis.
 
+    Args:
+        bounding_box (list): minx, miny, maxx, maxy list to clip to
+        clipped_data_dir (str): path to directory to copy clipped rasters
+            to
+        task_graph (TaskGraph): taskgraph object to schedule work.
+
+    Returns:
+        None.
+
+    """
     files_to_download = subprocess.check_output([
         '/usr/local/gcloud-sdk/google-cloud-sdk/bin/gsutil ls '
         'gs://ecoshard-root/global_carbon_regression/inputs'],
@@ -234,6 +240,9 @@ def main():
             "-180.0, -58.3, 180.0, 81.5"))
     parser.add_argument(
         '--keyfile', help='path to keyfile that authorizes bucket access')
+    parser.add_argument(
+        '--n_worksers', default=multiprocessing.cpu_count()
+        help='how many workers to allocate to taskgraph')
     args = parser.parse_args()
 
     if args.keyfile:
@@ -251,9 +260,9 @@ def main():
     bounding_box_str = ','.join([str(x) for x in args.bounding_box])
     clipped_data_dir = os.path.join(DATA_DIR, bounding_box_str)
     # Step 0: Download data
-    fetch_data(args.bounding_box, clipped_data_dir)
-
-    task_graph = taskgraph.TaskGraph(CHURN_DIR, N_CPUS, 5.0)
+    task_graph = taskgraph.TaskGraph(CHURN_DIR, args.n_cpus, 5.0)
+    LOGGER.info("Step 0: Download data")
+    fetch_data(args.bounding_box, clipped_data_dir, task_graph)
 
     # FOREST REGRESSION
 
@@ -261,6 +270,7 @@ def main():
     #    and 100 pixels for not_forest (see forest lulc codes), is_cropland
     #    (classes 10-40), and is_urban (class 190) for LULC maps
 
+    LOGGER.info("Forest Regression step 1")
     mask_path_task_map = {}  # keep track of masks and tasks that made them
     for lulc_scenario_raster_path in LULC_SCENARIO_RASTER_PATH_LIST:
         lulc_basename = os.path.splitext(os.path.basename(
@@ -319,6 +329,7 @@ def main():
 
     # 2) Apply the mult_rasters_by_columns.py script to existing inputs and
     #    the new convolution rasters for forest classes only.
+    LOGGER.info("Forest Regression step 2")
 
     # NON-FOREST REGRESSION
 
