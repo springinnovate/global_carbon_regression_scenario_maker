@@ -137,7 +137,7 @@ def download_and_clip(file_uri, download_dir, bounding_box, target_file_path):
 
     """
     try:
-        os.path.makedirs(download_dir)
+        os.makedirs(download_dir)
     except OSError:
         pass
 
