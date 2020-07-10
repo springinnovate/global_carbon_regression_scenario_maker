@@ -1,5 +1,6 @@
 """Create carbon regression scenarios."""
 import argparse
+import collections
 import logging
 import multiprocessing
 import os
@@ -39,24 +40,26 @@ URBAN_LULC_CODES = (190,)
 FOREST_CODES = (50, 60, 61, 62, 70, 71, 72, 80, 81, 82, 90, 160, 170)
 
 MASK_TYPES = [
-    ('is_cropland', CROPLAND_LULC_CODES, ''),
-    ('is_urban', URBAN_LULC_CODES, ''),
-    ('not_forest', FOREST_CODES, 'inv')]
+    ('is_cropland_10sec', CROPLAND_LULC_CODES, ''),
+    ('is_urban_10sec', URBAN_LULC_CODES, ''),
+    ('not_forest_10sec', FOREST_CODES, 'inv'),
+    ('forest_10sec', FOREST_CODES, '')]
 
 BASE_DATA_BUCKET_ROOT = 'gs://ecoshard-root/global_carbon_regression/inputs/'
 
-LULC_URL_LIST = [
-    'https://storage.googleapis.com/ecoshard-root/global_carbon_regression/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2014-v2.0.7_smooth_compressed.tif',
-    'https://storage.googleapis.com/ecoshard-root/global_carbon_regression/PNV_jsmith_060420_md5_8dd464e0e23fefaaabe52e44aa296330.tif',
-    'https://storage.googleapis.com/nci-ecoshards/scenarios050420/restoration_limited_md5_372bdfd9ffaf810b5f68ddeb4704f48f.tif']
-
+LULC_SCENARIO_URL_MAP = {
+    'esa2014': 'https://storage.googleapis.com/ecoshard-root/global_carbon_regression/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2014-v2.0.7_smooth_compressed.tif',
+    'pnv_jsmith_060420': 'https://storage.googleapis.com/ecoshard-root/global_carbon_regression/PNV_jsmith_060420_md5_8dd464e0e23fefaaabe52e44aa296330.tif',
+    'restoration_limited': 'https://storage.googleapis.com/nci-ecoshards/scenarios050420/restoration_limited_md5_372bdfd9ffaf810b5f68ddeb4704f48f.tif',
+}
+TARGET_PIXEL_SIZE = (10./3600., -10./3600.)
 LASSO_TABLE_URI = 'gs://ecoshard-root/global_carbon_regression/lasso_interacted_not_forest_gs1to100_nonlinear_alpha0-0001_params_namefix.csv'
 LASSO_TABLE_PATH = os.path.join(
     ECOSHARD_DIR, os.path.basename(LASSO_TABLE_URI))
 # The following is the base in the pattern found in the lasso table
 # [base]_[mask_type]_gs[kernel_size]
 BASE_LASSO_CONVOLUTION_RASTER_NAME = 'lulc_esa_smoothed_2014_10sec'
-LULC_SCENARIO_RASTER_PATH_LIST = []
+LULC_SCENARIO_RASTER_PATH_MAP = {}
 
 
 def make_kernel_raster(pixel_radius, target_path):
@@ -210,9 +213,9 @@ def fetch_data(bounding_box, clipped_data_dir, task_graph):
         target_path_list=[LASSO_TABLE_PATH],
         task_name='download lasso table')
 
-    global LULC_SCENARIO_RASTER_PATH_LIST
+    global LULC_SCENARIO_RASTER_PATH_MAP
     dl_lulc_task_map = {}
-    for lulc_url in LULC_URL_LIST:
+    for scenario_id, lulc_url in LULC_SCENARIO_URL_MAP.items():
         LOGGER.debug(f'download {lulc_url}')
         lulc_raster_path = os.path.join(
             ECOSHARD_DIR, os.path.basename(lulc_url))
@@ -221,7 +224,7 @@ def fetch_data(bounding_box, clipped_data_dir, task_graph):
             args=(lulc_url, lulc_raster_path),
             target_path_list=[lulc_raster_path],
             task_name=f'download {lulc_url}')
-        LULC_SCENARIO_RASTER_PATH_LIST.append(lulc_raster_path)
+        LULC_SCENARIO_RASTER_PATH_MAP[scenario_id] = lulc_raster_path
 
     task_graph.join()
 
@@ -269,23 +272,20 @@ def main():
     #    (classes 10-40), and is_urban (class 190) for LULC maps
 
     LOGGER.info("Forest Regression step 1")
-    mask_path_task_map = {}  # keep track of masks and tasks that made them
-    for lulc_scenario_raster_path in LULC_SCENARIO_RASTER_PATH_LIST:
-        lulc_basename = os.path.splitext(os.path.basename(
-            lulc_scenario_raster_path))[0]
+    mask_path_task_map = collections.defaultdict(dict)
+    for scenario_id, lulc_scenario_raster_path in \
+            LULC_SCENARIO_RASTER_PATH_MAP.items():
         for mask_type, lulc_codes, inverse_mode in MASK_TYPES:
             scenario_lulc_mask_raster_path = os.path.join(
-                CHURN_DIR, f'{mask_type}_{lulc_basename}.tif')
+                CHURN_DIR, f'{mask_type}_{scenario_id}.tif')
             mask_task = task_graph.add_task(
                 func=mask_ranges,
                 args=(
                     lulc_scenario_raster_path, lulc_codes,
                     inverse_mode == 'inv', scenario_lulc_mask_raster_path),
-                dependent_task_list=[
-                    dl_lulc_task_map[lulc_scenario_raster_path]],
                 target_path_list=[scenario_lulc_mask_raster_path],
-                task_name=f'make {mask_type}_{lulc_basename}')
-            mask_path_task_map[mask_type] = (
+                task_name=f'make {mask_type}_{scenario_id}')
+            mask_path_task_map[scenario_id][mask_type] = (
                 scenario_lulc_mask_raster_path, mask_task)
             LOGGER.debug(
                 f'this is the scenario lulc mask target: '
@@ -303,15 +303,15 @@ def main():
                 task_name=f'make kernel of radius {pixel_radius}')
             kernel_raster_path_map[pixel_radius] = kernel_raster_path
             convolution_task_list = []
-            for mask_type in mask_path_task_map:
+            for mask_type in mask_path_task_map[scenario_id]:
                 scenario_mask_path, mask_task = \
-                    mask_path_task_map[mask_type]
+                    mask_path_task_map[scenario_id][mask_type]
                 LOGGER.debug(
                     f'this is the scenario mask about to convolve: '
                     f'{scenario_mask_path} {mask_task}')
                 convolution_mask_raster_path = os.path.join(
                     clipped_data_dir,
-                    f'{lulc_basename}_{mask_type}_{pixel_radius}.tif')
+                    f'{scenario_id}_{mask_type}_gs{pixel_radius}.tif')
                 convolution_task = task_graph.add_task(
                     func=pygeoprocessing.convolve_2d,
                     args=(
@@ -321,13 +321,24 @@ def main():
                     target_path_list=[convolution_mask_raster_path],
                     task_name=(
                         f'convolve {pixel_radius} {mask_type}_'
-                        f'{lulc_basename}'))
+                        f'{scenario_id}'))
                 convolution_task_list.append(convolution_task)
-
 
     # 2) Apply the mult_rasters_by_columns.py script to existing inputs and
     #    the new convolution rasters for forest classes only.
     LOGGER.info("Forest Regression step 2")
+
+    mult_by_columns_workspace = os.path.join(WORKSPACE_DIR, bounding_box_str)
+    try:
+        os.makedirs(mult_by_columns_workspace)
+    except OSError:
+        pass
+    task_graph.join()
+    mult_by_columns_library.mult_by_columns(
+        LASSO_TABLE_PATH, clipped_data_dir, mult_by_columns_workspace,
+        BASE_LASSO_CONVOLUTION_RASTER_NAME, f'esa2014_{bounding_box_str}',
+        args.bounding_box, TARGET_PIXEL_SIZE, WORKSPACE_DIR,
+        zero_nodata=False, target_nodata=numpy.finfo('float32').min)
 
     # NON-FOREST REGRESSION
 
@@ -338,7 +349,6 @@ def main():
     # those LULC classes will need to be made as files called
     # lulc_esacci_2014_smoothed_class_10 - _220 (collapsing all the 11, 12 etc
     # back to its 10's place).
-
 
     # SCENARIOS/OPTIMIZATION
 
