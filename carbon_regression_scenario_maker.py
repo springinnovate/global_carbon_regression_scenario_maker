@@ -141,32 +141,27 @@ def download_and_clip(file_uri, download_dir, bounding_box, target_file_path):
     except OSError:
         pass
 
-    task_graph = taskgraph.TaskGraph(CHURN_DIR, -1)
-
     base_filename = os.path.basename(file_uri)
     base_file_path = os.path.join(download_dir, base_filename)
 
     # Wrapping this in a taskgraph prevents us from re-downloading a large
     # file if it's already been clipped before.
-    task_graph.add_task(
-        func=subprocess.run,
-        args=(
-            f'/usr/local/gcloud-sdk/google-cloud-sdk/bin/gsutil cp -nr '
-            f'{file_uri} {download_dir}/'),
-        kwargs={'shell': True, 'check': True},
-        target_path_list=[base_file_path],
-        task_name=f'download {file_uri} to {base_file_path}')
-    task_graph.join()
-    task_graph.close()
-    task_graph = None
+    LOGGER.debug(f'download {file_uri} to {base_file_path}')
+    subprocess.run(
+        f'/usr/local/gcloud-sdk/google-cloud-sdk/bin/gsutil cp -nr '
+        f'{file_uri} {download_dir}/', shell=True, check=True)
 
     raster_info = pygeoprocessing.get_raster_info(base_file_path)
     if bounding_box != raster_info['bounding_box']:
+        LOGGER.debug(
+            f'bounding box and desired target differ '
+            f"{bounding_box} {raster_info['bounding_box']}")
         pygeoprocessing.warp_raster(
             base_file_path, raster_info['pixel_size'], target_file_path,
             'near', target_bb=bounding_box)
     else:
         # it's already the same size so no need to warp it
+        LOGGER.debug('already the same size, so no need to warp')
         os.link(base_file_path, target_file_path)
 
 
@@ -192,7 +187,8 @@ def fetch_data(bounding_box, clipped_data_dir):
         _ = task_graph.add_task(
             func=download_and_clip,
             args=(
-                file_uri, DATA_DIR, bounding_box, clipped_data_dir),
+                file_uri, DATA_DIR, bounding_box, clipped_file_path),
+            target_path_list=[clipped_file_path],
             task_name=(
                 f'download and clip contents of {file_uri} to '
                 f'{clipped_data_dir}'))
