@@ -175,7 +175,7 @@ def fetch_data(bounding_box, clipped_data_dir):
     task_graph = taskgraph.TaskGraph(CHURN_DIR, N_CPUS, 5.0)
 
     files_to_download = subprocess.check_output([
-        '/usr/local/gcloud-sdk/google-cloud-sdk/bin/gsutil', 'ls',
+        '/usr/local/gcloud-sdk/google-cloud-sdk/bin/gsutil ls '
         'gs://ecoshard-root/global_carbon_regression/inputs'],
         shell=True).decode('utf-8').splitlines()
 
