@@ -181,7 +181,14 @@ def fetch_data(bounding_box, clipped_data_dir):
 
     LOGGER.debug(f'here are the files to download: {files_to_download}')
 
+    try:
+        os.makedirs(clipped_data_dir)
+    except OSError:
+        pass
+
     for file_uri in files_to_download:
+        clipped_file_path = os.path.join(
+            clipped_data_dir, os.path.basename(file_uri))
         _ = task_graph.add_task(
             func=download_and_clip,
             args=(
