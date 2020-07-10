@@ -223,9 +223,7 @@ def fetch_data(bounding_box, clipped_data_dir, task_graph):
             task_name=f'download {lulc_url}')
         LULC_SCENARIO_RASTER_PATH_LIST.append(lulc_raster_path)
 
-    task_graph.close()
     task_graph.join()
-    task_graph = None
 
 
 def main():
