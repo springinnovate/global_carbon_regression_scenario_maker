@@ -358,7 +358,7 @@ def main():
     mask_task = task_graph.add_task(
         func=mask_ranges,
         args=(
-            lasso_eval_for_esa2014_path, [0], '', esa2014_eval_raster_path),
+            lasso_eval_for_esa2014_path, [1], '', esa2014_eval_raster_path),
         target_path_list=[esa2014_eval_raster_path],
         task_name=f'eval for esa2014_eval_raster_path')
 
