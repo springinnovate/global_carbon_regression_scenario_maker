@@ -231,6 +231,11 @@ def fetch_data(bounding_box, clipped_data_dir, task_graph):
         target_path_list=[FOREST_REGRESSION_LASSO_TABLE_PATH],
         task_name='download forest regresstion lasso table')
 
+    try:
+        os.makedirs(NON_FOREST_REGRESSION_LASSO_TABLES_DIR)
+    except OSError:
+        pass
+
     download_non_forest_regression_lasso_task = task_graph.add_task(
         func=ecoshard.download_and_unzip,
         args=(
