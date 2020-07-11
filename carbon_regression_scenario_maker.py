@@ -206,6 +206,8 @@ def fetch_data(bounding_box, clipped_data_dir, task_graph):
         pass
 
     for file_uri in files_to_download:
+        if not file_uri.endswith('tif'):
+            continue
         clipped_file_path = os.path.join(
             clipped_data_dir, os.path.basename(file_uri))
         _ = task_graph.add_task(
