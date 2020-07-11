@@ -349,6 +349,19 @@ def main():
         target_nodata=numpy.finfo('float32').min)
 
     # TODO: mask to forest values
+    scenario_lulc_mask_raster_path = os.path.join(
+        clipped_data_dir, f'mask_of_forest_10sec_esa2014.tif')
+
+    esa2014_eval_raster_path = os.path.join(
+        WORKSPACE_DIR, f'esa2014_eval_{bounding_box_str}.tif')
+    # use the `mask_ranges` to mask out "0" which would indicate a non-valid
+    # value
+    mask_task = task_graph.add_task(
+        func=mask_ranges,
+        args=(
+            lasso_eval_for_esa2014_path, [0], '', esa2014_eval_raster_path),
+        target_path_list=[esa2014_eval_raster_path],
+        task_name=f'eval for esa2014_eval_raster_path')
 
     # NON-FOREST REGRESSION
 
