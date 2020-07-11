@@ -45,6 +45,8 @@ MASK_TYPES = [
     ('is_urban_10sec', URBAN_LULC_CODES, ''),
     ('not_forest_10sec', FOREST_CODES, 'inv'),
     ('forest_10sec', FOREST_CODES, '')]
+MASK_NODATA = 2
+MULT_BY_COLUMNS_NODATA = numpy.finfo('float32').min
 
 BASE_DATA_BUCKET_ROOT = 'gs://ecoshard-root/global_carbon_regression/inputs/'
 
@@ -94,6 +96,16 @@ def _mask_vals_op(array, nodata, valid_1d_array, inverse, target_nodata):
     return result
 
 
+def mult_op(array_a, array_b, nodata_a, nodata_b, target_nodata):
+    """Mult a*b and account for nodata."""
+    result = numpy.empty(array_a.shape)
+    result[:] = target_nodata
+    valid_mask = (
+        ~numpy.isclose(array_a, nodata_a) & ~numpy.isclose(array_b, nodata_b))
+    result[valid_mask] = array_a[valid_mask] * array_b[valid_mask]
+    return result
+
+
 def mask_ranges(
         base_raster_path, mask_value_list, inverse, target_raster_path):
     """Mask all values in the given inclusive range to 1, the rest to 0.
@@ -115,12 +127,11 @@ def mask_ranges(
     """
     base_nodata = pygeoprocessing.get_raster_info(
         base_raster_path)['nodata'][0]
-    target_nodata = 2
     pygeoprocessing.raster_calculator(
         [(base_raster_path, 1), (base_nodata, 'raw'),
          (mask_value_list, 'raw'), (inverse, 'raw'),
-         (target_nodata, 'raw')], _mask_vals_op,
-        target_raster_path, gdal.GDT_Byte, target_nodata)
+         (MASK_NODATA, 'raw')], _mask_vals_op,
+        target_raster_path, gdal.GDT_Byte, MASK_NODATA)
 
 
 def download_and_clip(file_uri, download_dir, bounding_box, target_file_path):
@@ -351,21 +362,30 @@ def main():
         pass
     task_graph.join()
     lasso_eval_for_esa2014_path = os.path.join(
-        CHURN_DIR, f'esa2014_eval_{bounding_box_str}.tif')
+        CHURN_DIR, f'pre_mask_forest_regression_esa2014_eval_{bounding_box_str}.tif')
     mult_by_columns_library.mult_by_columns(
-        FOREST_REGRESSION_LASSO_TABLE_PATH, clipped_data_dir, mult_by_columns_workspace,
+        FOREST_REGRESSION_LASSO_TABLE_PATH, clipped_data_dir,
+        mult_by_columns_workspace,
         'lulc_esa_smoothed_2014_10sec', 'esa2014',
         args.bounding_box, TARGET_PIXEL_SIZE, lasso_eval_for_esa2014_path,
         task_graph, zero_nodata=False,
-        target_nodata=numpy.finfo('float32').min)
+        target_nodata=MULT_BY_COLUMNS_NODATA)
 
     # TODO -- multiply lasso_eval for_esa2014 by scenario_lulc_mask_raster_path
     # _ = task_graph.add_task(
     LOGGER.info('mask forest values')
-    scenario_lulc_mask_raster_path = os.path.join(
+    scenario_lulc_forest_mask_raster_path = os.path.join(
         clipped_data_dir, f'mask_of_forest_10sec_esa2014.tif')
-    esa2014_eval_raster_path = os.path.join(
-        WORKSPACE_DIR, f'esa2014_eval_{bounding_box_str}.tif')
+    forest_regression_esa2014_eval_raster_path = os.path.join(
+        WORKSPACE_DIR, f'forest_regression_esa2014_eval_{bounding_box_str}.tif')
+    pygeoprocessing.raster_calculator(
+        [(scenario_lulc_forest_mask_raster_path, 1),
+         (lasso_eval_for_esa2014_path, 1),
+         (MASK_NODATA, 'raw'),
+         (MULT_BY_COLUMNS_NODATA, 'raw'),
+         (MULT_BY_COLUMNS_NODATA, 'raw'), ],
+        mult_op, forest_regression_esa2014_eval_raster_path, gdal.GDT_Float32,
+        MULT_BY_COLUMNS_NODATA)
 
     # NON-FOREST REGRESSION
 
@@ -401,7 +421,7 @@ def main():
                 os.path.join(NON_FOREST_REGRESSION_LASSO_TABLES_DIR, '*.csv')):
             alpha = re.match(
                 '.*alpha(.*)_.*', os.path.basename(lasso_table_path)).group(1)
-            non_forest_regression_raster_path = os.path.join(
+            pre_mask_non_forest_regression_eval_raster_path = os.path.join(
                 CHURN_DIR,
                 f'pre_mask_non_forest_regression_{scenario_id}_{alpha}_'
                 f'{bounding_box_str}.tif')
@@ -410,9 +430,9 @@ def main():
                 mult_by_columns_workspace,
                 'lulc_esacci_2014_smoothed_class', scenario_id,
                 args.bounding_box, TARGET_PIXEL_SIZE,
-                non_forest_regression_raster_path,
+                pre_mask_non_forest_regression_eval_raster_path,
                 task_graph, zero_nodata=False,
-                target_nodata=numpy.finfo('float32').min)
+                target_nodata=MULT_BY_COLUMNS_NODATA)
 
             non_forest_regression_eval_raster_path = os.path.join(
                 WORKSPACE_DIR,
@@ -422,7 +442,15 @@ def main():
             not_forest_mask_raster_path = os.path.join(
                 clipped_data_dir,
                 f'mask_of_not_forest_10sec_{scenario_id}.tif')
-            # TODO: multiply not-forest mask raster path with non_forest_regression-raster_path
+
+            pygeoprocessing.raster_calculator(
+                [(not_forest_mask_raster_path, 1),
+                 (pre_mask_non_forest_regression_eval_raster_path, 1),
+                 (MASK_NODATA, 'raw'),
+                 (MULT_BY_COLUMNS_NODATA, 'raw'),
+                 (MULT_BY_COLUMNS_NODATA, 'raw'), ],
+                mult_op, non_forest_regression_eval_raster_path,
+                gdal.GDT_Float32, MULT_BY_COLUMNS_NODATA)
 
     task_graph.join()
 
