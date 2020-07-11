@@ -343,7 +343,8 @@ def main():
         LASSO_TABLE_PATH, clipped_data_dir, mult_by_columns_workspace,
         BASE_LASSO_CONVOLUTION_RASTER_NAME, f'esa2014_{bounding_box_str}',
         args.bounding_box, TARGET_PIXEL_SIZE, WORKSPACE_DIR,
-        zero_nodata=False, target_nodata=numpy.finfo('float32').min)
+        task_graph, zero_nodata=False,
+        target_nodata=numpy.finfo('float32').min)
 
     # NON-FOREST REGRESSION
 

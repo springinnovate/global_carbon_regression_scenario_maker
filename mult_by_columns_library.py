@@ -103,7 +103,7 @@ def raster_rpn_calculator_op(*args_list):
 def mult_by_columns(
         lasso_table_path, data_dir, workspace_dir,
         base_convolution_raster_id, target_raster_id, bounding_box,
-        pixel_size, target_result_path,
+        pixel_size, target_result_path, task_graph,
         zero_nodata=False, target_nodata=numpy.finfo('float32').min):
     """Calculate large regression.
 
@@ -124,6 +124,8 @@ def mult_by_columns(
             max_lat, ex: " "-180.0, -58.3, 180.0, 81.5".
         pixel_size (float): desired target pixel size in raster units
         target_result_path (str): path to desired output raster
+        task_graph (TaskGraph): TaskGraph object that can be used for
+            scheduling.
         zero_nodata (bool): if True, present, treat nodata values as 0, if
             absent any nodata pixel in a stack will cause the output pixel to
             be nodata
@@ -238,7 +240,6 @@ def mult_by_columns(
     LOGGER.info(f'target bounding box: {target_bounding_box}')
 
     LOGGER.debug('align rasters, this might take a while')
-    task_graph = taskgraph.TaskGraph(workspace_dir, N_CPUS, 5.0)
     align_dir = os.path.join(workspace_dir, 'aligned_rasters')
     try:
         os.makedirs(align_dir)
