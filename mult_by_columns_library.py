@@ -162,7 +162,7 @@ def mult_by_columns(
                     match = re.match(
                         fr'{base_convolution_raster_id}(.*)',
                         product)
-                    suffix = match.groups(1)
+                    suffix = match.group(1)
                     product = \
                         f'''{target_raster_id}{suffix}'''
                 # for each multiplication term split out an exponent if exists
