@@ -47,10 +47,10 @@ MASK_TYPES = [
 
 BASE_DATA_BUCKET_ROOT = 'gs://ecoshard-root/global_carbon_regression/inputs/'
 
-LULC_SCENARIO_URL_MAP = {
-    'esa2014': 'https://storage.googleapis.com/ecoshard-root/global_carbon_regression/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2014-v2.0.7_smooth_compressed.tif',
-    'pnv_jsmith_060420': 'https://storage.googleapis.com/ecoshard-root/global_carbon_regression/PNV_jsmith_060420_md5_8dd464e0e23fefaaabe52e44aa296330.tif',
-    'restoration_limited': 'https://storage.googleapis.com/nci-ecoshards/scenarios050420/restoration_limited_md5_372bdfd9ffaf810b5f68ddeb4704f48f.tif',
+LULC_SCENARIO_URI_MAP = {
+    'esa2014': 'gs://ecoshard-root/global_carbon_regression/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2014-v2.0.7_smooth_compressed.tif',
+    'pnv_jsmith_060420': 'gs://ecoshard-root/global_carbon_regression/PNV_jsmith_060420_md5_8dd464e0e23fefaaabe52e44aa296330.tif',
+    'restoration_limited': 'gs://nci-ecoshards/scenarios050420/restoration_limited_md5_372bdfd9ffaf810b5f68ddeb4704f48f.tif',
 }
 TARGET_PIXEL_SIZE = (10./3600., -10./3600.)
 LASSO_TABLE_URI = 'gs://ecoshard-root/global_carbon_regression/lasso_interacted_not_forest_gs1to100_nonlinear_alpha0-0001_params_namefix.csv'
@@ -214,17 +214,21 @@ def fetch_data(bounding_box, clipped_data_dir, task_graph):
         task_name='download lasso table')
 
     global LULC_SCENARIO_RASTER_PATH_MAP
-    dl_lulc_task_map = {}
-    for scenario_id, lulc_url in LULC_SCENARIO_URL_MAP.items():
-        LOGGER.debug(f'download {lulc_url}')
+    for scenario_id, lulc_uri in LULC_SCENARIO_URI_MAP.items():
+        LOGGER.debug(f'download {lulc_uri}')
         lulc_raster_path = os.path.join(
-            ECOSHARD_DIR, os.path.basename(lulc_url))
-        dl_lulc_task_map[lulc_raster_path] = task_graph.add_task(
-            func=ecoshard.download_url,
-            args=(lulc_url, lulc_raster_path),
-            target_path_list=[lulc_raster_path],
-            task_name=f'download {lulc_url}')
-        LULC_SCENARIO_RASTER_PATH_MAP[scenario_id] = lulc_raster_path
+            ECOSHARD_DIR, os.path.basename(lulc_uri))
+        clipped_file_path = os.path.join(
+            clipped_data_dir, os.path.basename(lulc_raster_path))
+        _ = task_graph.add_task(
+            func=download_and_clip,
+            args=(
+                lulc_uri, ECOSHARD_DIR, bounding_box, clipped_file_path),
+            target_path_list=[clipped_file_path],
+            task_name=(
+                f'download and clip contents of {lulc_uri} to '
+                f'{clipped_data_dir}'))
+        LULC_SCENARIO_RASTER_PATH_MAP[scenario_id] = clipped_file_path
 
     task_graph.join()
 
