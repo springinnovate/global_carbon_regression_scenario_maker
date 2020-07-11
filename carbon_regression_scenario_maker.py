@@ -410,7 +410,7 @@ def main():
     # TODO: run the mult_by_columns on esa2014 and PNG and maybe the other
     # scenario but collapose their landcover rasters down to the right class
     # or whatever with the masks collapsed
-    for scenario_id, lulc_raster_path in LULC_SCENARIO_URI_MAP.items():
+    for scenario_id, lulc_raster_path in LULC_SCENARIO_RASTER_PATH_MAP.items():
         for class_id in range(10, 221, 10):
             # this path will ensure it's picked up later by the mult_by_columns
             # function
