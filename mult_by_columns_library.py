@@ -285,11 +285,10 @@ def mult_by_columns(
     LOGGER.debug(rpn_stack)
 
     # wait for rasters to align
-    task_graph.close()
     task_graph.join()
 
     LOGGER.debug(raster_path_band_list)
     pygeoprocessing.raster_calculator(
         raster_path_band_list, raster_rpn_calculator_op, target_result_path,
         gdal.GDT_Float32, float(target_nodata))
-    LOGGER.debug('all done')
+    LOGGER.debug('all done with mult by raster')
