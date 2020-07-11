@@ -197,7 +197,7 @@ def mult_by_columns(
     min_size = sys.float_info.max
     bounding_box_list = []
     for index, raster_id in enumerate(raster_id_list):
-        raster_path = os.path.join(args.data_dir, f'{raster_id}.tif')
+        raster_path = os.path.join(data_dir, f'{raster_id}.tif')
         if not os.path.exists(raster_path):
             missing_id_list.append(raster_path)
             continue
@@ -275,7 +275,9 @@ def mult_by_columns(
         raster_path_band_list.append(
             (raster_id_to_info_map[raster_id]['nodata'], 'raw'))
         if index != raster_id_to_info_map[raster_id]['index']:
-            raise RuntimeError(f"indexes dont match: {index} {raster_id} {raster_id_to_info_map}")
+            raise RuntimeError(
+                f"indexes dont match: {index} {raster_id} "
+                f"{raster_id_to_info_map}")
 
     raster_path_band_list.append((target_nodata, 'raw'))
     raster_path_band_list.append((rpn_stack, 'raw'))
