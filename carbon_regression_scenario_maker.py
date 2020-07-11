@@ -1,9 +1,11 @@
 """Create carbon regression scenarios."""
 import argparse
 import collections
+import glob
 import logging
 import multiprocessing
 import os
+import re
 import subprocess
 import sys
 
@@ -52,9 +54,12 @@ LULC_SCENARIO_URI_MAP = {
     'restoration_limited': 'gs://nci-ecoshards/scenarios050420/restoration_limited_md5_372bdfd9ffaf810b5f68ddeb4704f48f.tif',
 }
 TARGET_PIXEL_SIZE = (10./3600., -10./3600.)
-LASSO_TABLE_URI = 'gs://ecoshard-root/global_carbon_regression/lasso_interacted_not_forest_gs1to100_nonlinear_alpha0-0001_params_namefix.csv'
-LASSO_TABLE_PATH = os.path.join(
-    ECOSHARD_DIR, os.path.basename(LASSO_TABLE_URI))
+FOREST_REGRESSION_LASSO_TABLE_URI = 'gs://ecoshard-root/global_carbon_regression/lasso_interacted_not_forest_gs1to100_nonlinear_alpha0-0001_params_namefix.csv'
+NON_FOREST_REGRESSION_LASSO_TABLES_URL = 'https://storage.googleapis.com/ecoshard-root/global_carbon_regression/inputs/results_2020-07-07b_md5_fe89d44cf181486b384beb432c253d47.zip'
+NON_FOREST_REGRESSION_LASSO_TABLES_DIR = os.path.join(
+    ECOSHARD_DIR, 'non_forest_regression_tables')
+FOREST_REGRESSION_LASSO_TABLE_PATH = os.path.join(
+    ECOSHARD_DIR, os.path.basename(FOREST_REGRESSION_LASSO_TABLE_URI))
 # The following is the base in the pattern found in the lasso table
 # [base]_[mask_type]_gs[kernel_size]
 BASE_LASSO_CONVOLUTION_RASTER_NAME = 'lulc_esa_smoothed_2014_10sec'
@@ -202,15 +207,22 @@ def fetch_data(bounding_box, clipped_data_dir, task_graph):
                 f'{clipped_data_dir}'))
     task_graph.join()
 
-    # download lasso table
-    download_lasso_task = task_graph.add_task(
+    download_forest_regression_lasso_task = task_graph.add_task(
         func=subprocess.run,
         args=(
             f'/usr/local/gcloud-sdk/google-cloud-sdk/bin/gsutil cp -n '
-            f'{LASSO_TABLE_URI} {LASSO_TABLE_PATH}',),
+            f'{FOREST_REGRESSION_LASSO_TABLE_URI} '
+            f'{FOREST_REGRESSION_LASSO_TABLE_PATH}',),
         kwargs={'shell': True, 'check': True},
-        target_path_list=[LASSO_TABLE_PATH],
-        task_name='download lasso table')
+        target_path_list=[FOREST_REGRESSION_LASSO_TABLE_PATH],
+        task_name='download forest regresstion lasso table')
+
+    download_non_forest_regression_lasso_task = task_graph.add_task(
+        func=ecoshard.download_and_unzip,
+        args=(
+            NON_FOREST_REGRESSION_LASSO_TABLES_URL,
+            NON_FOREST_REGRESSION_LASSO_TABLES_DIR),
+        task_name='download non forest regresstion lasso table')
 
     global LULC_SCENARIO_RASTER_PATH_MAP
     for scenario_id, lulc_uri in LULC_SCENARIO_URI_MAP.items():
@@ -328,7 +340,7 @@ def main():
                 convolution_task_list.append(convolution_task)
     task_graph.join()
 
-    # 2) Apply the mult_rasters_by_columns.py script to `LASSO_TABLE_PATH` and
+    # 2) Apply the mult_rasters_by_columns.py script to `FOREST_REGRESSION_LASSO_TABLE_PATH` and
     #    the new convolution rasters for forest classes only.
     LOGGER.info("Forest Regression step 2")
 
@@ -341,25 +353,19 @@ def main():
     lasso_eval_for_esa2014_path = os.path.join(
         CHURN_DIR, f'esa2014_eval_{bounding_box_str}.tif')
     mult_by_columns_library.mult_by_columns(
-        LASSO_TABLE_PATH, clipped_data_dir, mult_by_columns_workspace,
-        BASE_LASSO_CONVOLUTION_RASTER_NAME, 'esa2014',
+        FOREST_REGRESSION_LASSO_TABLE_PATH, clipped_data_dir, mult_by_columns_workspace,
+        'lulc_esa_smoothed_2014_10sec', 'esa2014',
         args.bounding_box, TARGET_PIXEL_SIZE, lasso_eval_for_esa2014_path,
         task_graph, zero_nodata=False,
         target_nodata=numpy.finfo('float32').min)
 
+    # TODO -- multiply lasso_eval for_esa2014 by scenario_lulc_mask_raster_path
+    # _ = task_graph.add_task(
     LOGGER.info('mask forest values')
     scenario_lulc_mask_raster_path = os.path.join(
         clipped_data_dir, f'mask_of_forest_10sec_esa2014.tif')
     esa2014_eval_raster_path = os.path.join(
         WORKSPACE_DIR, f'esa2014_eval_{bounding_box_str}.tif')
-    # use the `mask_ranges` to mask out "0" which would indicate a non-valid
-    # value
-    _ = task_graph.add_task(
-        func=mask_ranges,
-        args=(
-            lasso_eval_for_esa2014_path, [1], '', esa2014_eval_raster_path),
-        target_path_list=[esa2014_eval_raster_path],
-        task_name=f'eval for esa2014_eval_raster_path')
 
     # NON-FOREST REGRESSION
 
@@ -372,20 +378,51 @@ def main():
     # back to its 10's place).
 
     LOGGER.info('create the lulc_esacci_2014_smoothed_class_* rasters')
-    for class_id in range(10, 221, 10):
-        # this path will ensure it's picked up later by the mult_by_columns
-        # function
-        collapsed_class_raster_path = os.path.join(
-            clipped_data_dir,
-            f'lulc_esacci_2014_smoothed_class_{class_id}.tif')
-        mask_task = task_graph.add_task(
-            func=mask_ranges,
-            args=(
-                LULC_SCENARIO_RASTER_PATH_MAP['esa2014'],
-                list(range(class_id, class_id+11)), '',
-                collapsed_class_raster_path),
-            target_path_list=[collapsed_class_raster_path],
-            task_name=f'eval for collapsed_class_raster_path')
+
+    # TODO: run the mult_by_columns on esa2014 and PNG and maybe the other
+    # scenario but collapose their landcover rasters down to the right class
+    # or whatever with the masks collapsed
+    for scenario_id, lulc_raster_path in LULC_SCENARIO_URI_MAP.items():
+        for class_id in range(10, 221, 10):
+            # this path will ensure it's picked up later by the mult_by_columns
+            # function
+            collapsed_class_raster_path = os.path.join(
+                clipped_data_dir,
+                f'{scenario_id}_{class_id}.tif')
+            mask_task = task_graph.add_task(
+                func=mask_ranges,
+                args=(
+                    lulc_raster_path,
+                    list(range(class_id, class_id+11)), '',
+                    collapsed_class_raster_path),
+                target_path_list=[collapsed_class_raster_path],
+                task_name=f'eval for collapsed_class_raster_path')
+        for lasso_table_path in glob.glob(
+                os.path.join(NON_FOREST_REGRESSION_LASSO_TABLES_DIR, '*.csv')):
+            alpha = re.match(
+                '.*alpha(.*)_.*', os.path.basename(lasso_table_path)).group(1)
+            non_forest_regression_raster_path = os.path.join(
+                CHURN_DIR,
+                f'pre_mask_non_forest_regression_{scenario_id}_{alpha}_'
+                f'{bounding_box_str}.tif')
+            mult_by_columns_library.mult_by_columns(
+                lasso_table_path, clipped_data_dir,
+                mult_by_columns_workspace,
+                'lulc_esacci_2014_smoothed_class', scenario_id,
+                args.bounding_box, TARGET_PIXEL_SIZE,
+                non_forest_regression_raster_path,
+                task_graph, zero_nodata=False,
+                target_nodata=numpy.finfo('float32').min)
+
+            non_forest_regression_eval_raster_path = os.path.join(
+                WORKSPACE_DIR,
+                f'non_forest_regression_{scenario_id}_{alpha}_'
+                f'{bounding_box_str}.tif')
+
+            not_forest_mask_raster_path = os.path.join(
+                clipped_data_dir,
+                f'mask_of_not_forest_10sec_{scenario_id}.tif')
+            # TODO: multiply not-forest mask raster path with non_forest_regression-raster_path
 
     task_graph.join()
 
@@ -421,7 +458,7 @@ def main():
     # task_graph.add_task(
     #     func=mult_by_columns_library.mult_by_columns,
     #     args=(
-    #         LASSO_TABLE_PATH, clipped_data_dir, lasso_mult_workspace_dir,
+    #         FOREST_REGRESSION_LASSO_TABLE_PATH, clipped_data_dir, lasso_mult_workspace_dir,
     #         BASE_LASSO_CONVOLUTION_RASTER_NAME, lulc_basename, None,
     #         0.002777777777777777884, target_result_path),
     #     dependent_task_list=convolution_task_list + [

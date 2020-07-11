@@ -160,11 +160,11 @@ def mult_by_columns(
                 if product.startswith(base_convolution_raster_id):
                     LOGGER.debug(f'parsing out base and gs in {product}')
                     match = re.match(
-                        fr'{base_convolution_raster_id}_(.*_gs)(\d+)',
+                        fr'{base_convolution_raster_id}(.*)',
                         product)
-                    mask_id, kernel_size = match.groups()
+                    suffix = match.groups(1)
                     product = \
-                        f'''{target_raster_id}_{mask_id}{kernel_size}'''
+                        f'''{target_raster_id}{suffix}'''
                 # for each multiplication term split out an exponent if exists
                 if '^' in product:
                     rpn_stack.extend(product.split('^'))
