@@ -323,6 +323,7 @@ def main():
                         f'convolve {pixel_radius} {mask_type}_'
                         f'{scenario_id}'))
                 convolution_task_list.append(convolution_task)
+    task_graph.join()
 
     # 2) Apply the mult_rasters_by_columns.py script to existing inputs and
     #    the new convolution rasters for forest classes only.
