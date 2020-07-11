@@ -246,7 +246,7 @@ def main():
     parser.add_argument(
         '--keyfile', help='path to keyfile that authorizes bucket access')
     parser.add_argument(
-        '--n_workers', default=multiprocessing.cpu_count(),
+        '--n_workers', type=int, default=multiprocessing.cpu_count(),
         help='how many workers to allocate to taskgraph')
     args = parser.parse_args()
 
@@ -347,6 +347,8 @@ def main():
         args.bounding_box, TARGET_PIXEL_SIZE, lasso_eval_for_esa2014_path,
         task_graph, zero_nodata=False,
         target_nodata=numpy.finfo('float32').min)
+
+    # TODO: mask to forest values
 
     # NON-FOREST REGRESSION
 
