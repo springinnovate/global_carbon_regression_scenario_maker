@@ -347,15 +347,14 @@ def main():
         task_graph, zero_nodata=False,
         target_nodata=numpy.finfo('float32').min)
 
-    # TODO: mask to forest values
+    LOGGER.info('mask forest values')
     scenario_lulc_mask_raster_path = os.path.join(
         clipped_data_dir, f'mask_of_forest_10sec_esa2014.tif')
-
     esa2014_eval_raster_path = os.path.join(
         WORKSPACE_DIR, f'esa2014_eval_{bounding_box_str}.tif')
     # use the `mask_ranges` to mask out "0" which would indicate a non-valid
     # value
-    mask_task = task_graph.add_task(
+    _ = task_graph.add_task(
         func=mask_ranges,
         args=(
             lasso_eval_for_esa2014_path, [1], '', esa2014_eval_raster_path),
@@ -371,6 +370,24 @@ def main():
     # those LULC classes will need to be made as files called
     # lulc_esacci_2014_smoothed_class_10 - _220 (collapsing all the 11, 12 etc
     # back to its 10's place).
+
+    LOGGER.info('create the lulc_esacci_2014_smoothed_class_* rasters')
+    for class_id in range(10, 221, 10):
+        # this path will ensure it's picked up later by the mult_by_columns
+        # function
+        collapsed_class_raster_path = os.path.join(
+            clipped_data_dir,
+            f'lulc_esacci_2014_smoothed_class_{class_id}.tif')
+        mask_task = task_graph.add_task(
+            func=mask_ranges,
+            args=(
+                LULC_SCENARIO_RASTER_PATH_MAP['esa2014'],
+                list(range(class_id, class_id+11)), '',
+                collapsed_class_raster_path),
+            target_path_list=[collapsed_class_raster_path],
+            task_name=f'eval for collapsed_class_raster_path')
+
+    task_graph.join()
 
     # SCENARIOS/OPTIMIZATION
 
