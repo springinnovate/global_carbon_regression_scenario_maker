@@ -10,6 +10,7 @@ import subprocess
 import sys
 
 from osgeo import gdal
+import ecoshard
 import pygeoprocessing
 import numpy
 import scipy.ndimage
