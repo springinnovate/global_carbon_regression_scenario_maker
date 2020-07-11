@@ -164,7 +164,7 @@ def mult_by_columns(
                         product)
                     mask_id, kernel_size = match.groups()
                     product = \
-                        f'''{target_raster_id}_{mask_id}_{kernel_size}'''
+                        f'''{target_raster_id}_{mask_id}{kernel_size}'''
                 # for each multiplication term split out an exponent if exists
                 if '^' in product:
                     rpn_stack.extend(product.split('^'))
