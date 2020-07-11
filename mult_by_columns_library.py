@@ -136,7 +136,7 @@ def mult_by_columns(
 
     """
     lasso_df = pandas.read_csv(lasso_table_path, header=None)
-
+    LOGGER.debug(f"parsing through {lasso_table_path}")
     # built a reverse polish notation stack for the operations and their order
     # that they need to be executed in
     rpn_stack = []
