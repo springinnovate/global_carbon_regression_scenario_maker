@@ -160,7 +160,7 @@ def mult_by_columns(
                 if product.startswith(base_convolution_raster_id):
                     LOGGER.debug(f'parsing out base and gs in {product}')
                     match = re.match(
-                        fr'{base_convolution_raster_id}_(.*)_gs(\d+)',
+                        fr'{base_convolution_raster_id}_(.*_gs)(\d+)',
                         product)
                     mask_id, kernel_size = match.groups()
                     product = \
