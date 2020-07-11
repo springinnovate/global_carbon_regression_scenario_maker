@@ -281,7 +281,7 @@ def main():
             LULC_SCENARIO_RASTER_PATH_MAP.items():
         for mask_type, lulc_codes, inverse_mode in MASK_TYPES:
             scenario_lulc_mask_raster_path = os.path.join(
-                CHURN_DIR, f'{mask_type}_{scenario_id}.tif')
+                clipped_data_dir, f'mask_of_{mask_type}_{scenario_id}.tif')
             mask_task = task_graph.add_task(
                 func=mask_ranges,
                 args=(
