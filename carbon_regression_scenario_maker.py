@@ -47,7 +47,7 @@ MASK_TYPES = [
     ('not_forest_10sec', FOREST_CODES, 'inv'),
     ('forest_10sec', FOREST_CODES, '')]
 MASK_NODATA = 2
-MULT_BY_COLUMNS_NODATA = numpy.finfo('float32').min
+MULT_BY_COLUMNS_NODATA = float(numpy.finfo('float32').min)
 
 BASE_DATA_BUCKET_ROOT = 'gs://ecoshard-root/global_carbon_regression/inputs/'
 
