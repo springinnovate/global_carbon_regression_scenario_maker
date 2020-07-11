@@ -122,7 +122,7 @@ def mult_by_columns(
         bounding_box (list): If not `None`, manual bounding box in the form
             of four  consecutive floats: "min_lng, min_lat, max_lng,
             max_lat, ex: " "-180.0, -58.3, 180.0, 81.5".
-        pixel_size (float): desired target pixel size in raster units
+        pixel_size (tuple): desired target pixel size in raster units
         target_result_path (str): path to desired output raster
         task_graph (TaskGraph): TaskGraph object that can be used for
             scheduling.
@@ -231,12 +231,10 @@ def mult_by_columns(
         target_bounding_box = pygeoprocessing.merge_bounding_box_list(
             bounding_box_list, 'intersection')
 
-    if pixel_size:
-        target_pixel_size = (pixel_size, -pixel_size)
-    else:
-        target_pixel_size = (min_size, -min_size)
+    if not pixel_size:
+        pixel_size = (min_size, -min_size)
 
-    LOGGER.info(f'target pixel size: {target_pixel_size}')
+    LOGGER.info(f'target pixel size: {pixel_size}')
     LOGGER.info(f'target bounding box: {target_bounding_box}')
 
     LOGGER.debug('align rasters, this might take a while')
@@ -253,13 +251,13 @@ def mult_by_columns(
         raster_basename = os.path.splitext(os.path.basename(raster_path))[0]
         aligned_raster_path = os.path.join(
             align_dir,
-            f'{raster_basename}_{target_bounding_box}_{target_pixel_size}.tif')
+            f'{raster_basename}_{target_bounding_box}_{pixel_size}.tif')
         raster_id_to_info_map[raster_id]['aligned_path'] = \
             aligned_raster_path
         task_graph.add_task(
             func=pygeoprocessing.warp_raster,
             args=(
-                raster_path, target_pixel_size, aligned_raster_path,
+                raster_path, pixel_size, aligned_raster_path,
                 'near'),
             kwargs={
                 'target_bb': target_bounding_box,
