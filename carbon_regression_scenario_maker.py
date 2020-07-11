@@ -329,7 +329,7 @@ def main():
                 convolution_task_list.append(convolution_task)
     task_graph.join()
 
-    # 2) Apply the mult_rasters_by_columns.py script to existing inputs and
+    # 2) Apply the mult_rasters_by_columns.py script to `LASSO_TABLE_PATH` and
     #    the new convolution rasters for forest classes only.
     LOGGER.info("Forest Regression step 2")
 
@@ -341,7 +341,7 @@ def main():
     task_graph.join()
     mult_by_columns_library.mult_by_columns(
         LASSO_TABLE_PATH, clipped_data_dir, mult_by_columns_workspace,
-        BASE_LASSO_CONVOLUTION_RASTER_NAME, f'esa2014_{bounding_box_str}',
+        BASE_LASSO_CONVOLUTION_RASTER_NAME, 'esa2014',
         args.bounding_box, TARGET_PIXEL_SIZE, WORKSPACE_DIR,
         task_graph, zero_nodata=False,
         target_nodata=numpy.finfo('float32').min)
