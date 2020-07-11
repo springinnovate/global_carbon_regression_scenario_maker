@@ -339,10 +339,12 @@ def main():
     except OSError:
         pass
     task_graph.join()
+    lasso_eval_for_esa2014_path = os.path.join(
+        CHURN_DIR, f'esa2014_eval_{bounding_box_str}.tif')
     mult_by_columns_library.mult_by_columns(
         LASSO_TABLE_PATH, clipped_data_dir, mult_by_columns_workspace,
         BASE_LASSO_CONVOLUTION_RASTER_NAME, 'esa2014',
-        args.bounding_box, TARGET_PIXEL_SIZE, WORKSPACE_DIR,
+        args.bounding_box, TARGET_PIXEL_SIZE, lasso_eval_for_esa2014_path,
         task_graph, zero_nodata=False,
         target_nodata=numpy.finfo('float32').min)
 
