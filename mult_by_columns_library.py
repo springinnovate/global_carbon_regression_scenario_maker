@@ -223,7 +223,7 @@ def mult_by_columns(
             f'{"rasters" if len(missing_id_list) > 1 else "raster"} given '
             f'the entries in the table, but could not find them locally:\n'
             + "\n".join(missing_id_list))
-        if not allow_missing_data:
+        if allow_missing_data:
             sys.exit(-1)
 
     LOGGER.info(
