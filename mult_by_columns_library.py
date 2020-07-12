@@ -286,13 +286,13 @@ def mult_by_columns(
                 (raster_id_to_info_map[raster_id]['aligned_path'], 1))
             raster_path_band_list.append(
                 (raster_id_to_info_map[raster_id]['nodata'], 'raw'))
+            if index != raster_id_to_info_map[raster_id]['index']:
+                raise RuntimeError(
+                    f"indexes dont match: {index} {raster_id} "
+                    f"{raster_id_to_info_map}")
         else:
             raster_path_band_list.append((0.0, 'raw'))
             raster_path_band_list.append((0.0, 'raw'))
-        if index != raster_id_to_info_map[raster_id]['index']:
-            raise RuntimeError(
-                f"indexes dont match: {index} {raster_id} "
-                f"{raster_id_to_info_map}")
 
     raster_path_band_list.append((target_nodata, 'raw'))
     raster_path_band_list.append((rpn_stack, 'raw'))
