@@ -49,6 +49,8 @@ MASK_TYPES = [
 MASK_NODATA = 2
 MULT_BY_COLUMNS_NODATA = float(numpy.finfo('float32').min)
 
+CARBON_ZONES_VECTOR_URI = 'gs://ecoshard-root/global_carbon_regression/carbon_zones_md5_aa16830f64d1ef66ebdf2552fb8a9c0d.gpkg'
+CARBON_ZONES_VECTOR_PATH = os.path.join(ECOSHARD_DIR, 'carbon_zones.gpkg')
 BASE_DATA_BUCKET_ROOT = 'gs://ecoshard-root/global_carbon_regression/inputs/'
 
 LULC_SCENARIO_URI_MAP = {
@@ -221,22 +223,25 @@ def fetch_data(bounding_box, clipped_data_dir, task_graph):
                 f'{clipped_data_dir}'))
     task_graph.join()
 
-    download_forest_regression_lasso_task = task_graph.add_task(
-        func=subprocess.run,
-        args=(
-            f'/usr/local/gcloud-sdk/google-cloud-sdk/bin/gsutil cp -n '
-            f'{FOREST_REGRESSION_LASSO_TABLE_URI} '
-            f'{FOREST_REGRESSION_LASSO_TABLE_PATH}',),
-        kwargs={'shell': True, 'check': True},
-        target_path_list=[FOREST_REGRESSION_LASSO_TABLE_PATH],
-        task_name='download forest regresstion lasso table')
+    for data_uri, data_path in [
+            (CARBON_ZONES_VECTOR_URI, CARBON_ZONES_VECTOR_PATH),
+            (FOREST_REGRESSION_LASSO_TABLE_URI,
+             FOREST_REGRESSION_LASSO_TABLE_PATH)]:
+        _ = task_graph.add_task(
+            func=subprocess.run,
+            args=(
+                f'/usr/local/gcloud-sdk/google-cloud-sdk/bin/gsutil cp -n '
+                f'{data_uri} {data_path}',),
+            kwargs={'shell': True, 'check': True},
+            target_path_list=[data_path],
+            task_name=f'download {data_uri}')
 
     try:
         os.makedirs(NON_FOREST_REGRESSION_LASSO_TABLES_DIR)
     except OSError:
         pass
 
-    download_non_forest_regression_lasso_task = task_graph.add_task(
+    _ = task_graph.add_task(
         func=ecoshard.download_and_unzip,
         args=(
             NON_FOREST_REGRESSION_LASSO_TABLES_URL,
@@ -298,6 +303,12 @@ def main():
     task_graph = taskgraph.TaskGraph(CHURN_DIR, args.n_workers, 5.0)
     LOGGER.info("Step 0: Download data")
     fetch_data(args.bounding_box, clipped_data_dir, task_graph)
+
+    # IPCC Approach
+    # TODO: for each landcover map,
+    #       rasterize the carbon zones
+    #       raster calculate the table + zones + landcover map to a carbon map
+
 
     # FOREST REGRESSION
 
