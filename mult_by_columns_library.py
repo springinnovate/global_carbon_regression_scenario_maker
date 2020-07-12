@@ -104,7 +104,8 @@ def mult_by_columns(
         lasso_table_path, data_dir, workspace_dir,
         base_convolution_raster_id, target_raster_id, bounding_box,
         pixel_size, target_result_path, task_graph,
-        zero_nodata=False, target_nodata=numpy.finfo('float32').min):
+        zero_nodata=False, target_nodata=numpy.finfo('float32').min,
+        allow_missing_data=False):
     """Calculate large regression.
 
     Args:
@@ -130,6 +131,8 @@ def mult_by_columns(
             absent any nodata pixel in a stack will cause the output pixel to
             be nodata
         target_nodata (float): desired target nodata value
+        allow_missing_data (bool): if True will skip over terms that have no
+            raster counterparts.
 
     Returns:
         None
@@ -220,7 +223,8 @@ def mult_by_columns(
             f'{"rasters" if len(missing_id_list) > 1 else "raster"} given '
             f'the entries in the table, but could not find them locally:\n'
             + "\n".join(missing_id_list))
-        sys.exit(-1)
+        if not allow_missing_data:
+            sys.exit(-1)
 
     LOGGER.info(
         f'raster paths:\n{str(raster_id_to_info_map)}')
@@ -247,6 +251,9 @@ def mult_by_columns(
     # align rasters and cast to list because we'll rewrite
     # raster_id_to_path_map object
     for raster_id in raster_id_to_info_map:
+        if raster_id in missing_id_list:
+            LOGGER.warn(f'not warping {raster_id} because it is not on disk')
+            continue
         raster_path = raster_id_to_info_map[raster_id]['path']
         raster_basename = os.path.splitext(os.path.basename(raster_path))[0]
         aligned_raster_path = os.path.join(
@@ -269,10 +276,14 @@ def mult_by_columns(
     LOGGER.debug(raster_id_list)
     LOGGER.debug(raster_id_to_info_map)
     for index, raster_id in enumerate(raster_id_list):
-        raster_path_band_list.append(
-            (raster_id_to_info_map[raster_id]['aligned_path'], 1))
-        raster_path_band_list.append(
-            (raster_id_to_info_map[raster_id]['nodata'], 'raw'))
+        if raster_id not in missing_id_list:
+            raster_path_band_list.append(
+                (raster_id_to_info_map[raster_id]['aligned_path'], 1))
+            raster_path_band_list.append(
+                (raster_id_to_info_map[raster_id]['nodata'], 'raw'))
+        else:
+            raster_path_band_list.append((0.0, 'raw'))
+            raster_path_band_list.append((0.0, 'raw'))
         if index != raster_id_to_info_map[raster_id]['index']:
             raise RuntimeError(
                 f"indexes dont match: {index} {raster_id} "
