@@ -63,6 +63,9 @@ FOREST_REGRESSION_LASSO_TABLE_URI = 'gs://ecoshard-root/global_carbon_regression
 NON_FOREST_REGRESSION_LASSO_TABLES_URL = 'https://storage.googleapis.com/ecoshard-root/global_carbon_regression/inputs/results_2020-07-07b_md5_fe89d44cf181486b384beb432c253d47.zip'
 NON_FOREST_REGRESSION_LASSO_TABLES_DIR = os.path.join(
     ECOSHARD_DIR, 'non_forest_regression_tables')
+IPCC_CARBON_TABLE_URI = 'gs://ecoshard-root/global_carbon_regression/IPCC_carbon_table_md5_a91f7ade46871575861005764d85cfa7.csv'
+IPCC_CARBON_TABLE_PATH = os.path.join(
+    ECOSHARD_DIR, os.path.basename(IPCC_CARBON_TABLE_URI))
 FOREST_REGRESSION_LASSO_TABLE_PATH = os.path.join(
     ECOSHARD_DIR, os.path.basename(FOREST_REGRESSION_LASSO_TABLE_URI))
 # The following is the base in the pattern found in the lasso table
@@ -226,7 +229,8 @@ def fetch_data(bounding_box, clipped_data_dir, task_graph):
     for data_uri, data_path in [
             (CARBON_ZONES_VECTOR_URI, CARBON_ZONES_VECTOR_PATH),
             (FOREST_REGRESSION_LASSO_TABLE_URI,
-             FOREST_REGRESSION_LASSO_TABLE_PATH)]:
+             FOREST_REGRESSION_LASSO_TABLE_PATH),
+            (IPCC_CARBON_TABLE_URI, IPCC_CARBON_TABLE_PATH)]:
         _ = task_graph.add_task(
             func=subprocess.run,
             args=(
@@ -305,10 +309,15 @@ def main():
     fetch_data(args.bounding_box, clipped_data_dir, task_graph)
 
     # IPCC Approach
-    # TODO: for each landcover map,
+    # TODO: convert IPCC table into something I can use
+    #   for each landcover map,
     #       rasterize the carbon zones
     #       raster calculate the table + zones + landcover map to a carbon map
-
+    for _, lulc_raster_path in LULC_SCENARIO_RASTER_PATH_MAP.items():
+        carbon_zone_raster_path = os.path.join(
+            clipped_data_dir,
+            f'carbon_zones_{os.path.basename(lulc_raster_path)}')
+        [(carbon_zone_raster_path, 1), (lulc_raster_path, 1)]
 
     # FOREST REGRESSION
 
