@@ -198,13 +198,13 @@ def mult_by_columns(
 
     # translate symbols into raster paths and get relevant raster info
     raster_id_to_info_map = {}
-    missing_id_list = []
+    missing_raster_path_list = []
     min_size = sys.float_info.max
     bounding_box_list = []
     for index, raster_id in enumerate(raster_id_list):
         raster_path = os.path.join(data_dir, f'{raster_id}.tif')
         if not os.path.exists(raster_path):
-            missing_id_list.append(raster_path)
+            missing_raster_path_list.append(raster_path)
             continue
         else:
             raster_info = pygeoprocessing.get_raster_info(raster_path)
@@ -217,14 +217,19 @@ def mult_by_columns(
                 min_size, abs(raster_info['pixel_size'][0]))
             bounding_box_list.append(raster_info['bounding_box'])
 
-    if missing_id_list:
+    if missing_raster_path_list:
         LOGGER.error(
             f'expected the following '
-            f'{"rasters" if len(missing_id_list) > 1 else "raster"} given '
+            f'{"rasters" if len(missing_raster_path_list) > 1 else "raster"} given '
             f'the entries in the table, but could not find them locally:\n'
-            + "\n".join(missing_id_list))
+            + "\n".join(missing_raster_path_list))
         if allow_missing_data:
             sys.exit(-1)
+
+    missing_raster_id_set = {
+        os.path.basename(os.path.splitext(path)[0])
+        for path in missing_raster_path_list
+    }
 
     LOGGER.info(
         f'raster paths:\n{str(raster_id_to_info_map)}')
@@ -251,7 +256,7 @@ def mult_by_columns(
     # align rasters and cast to list because we'll rewrite
     # raster_id_to_path_map object
     for raster_id in raster_id_to_info_map:
-        if raster_id in missing_id_list:
+        if raster_id in missing_raster_id_set:
             LOGGER.warn(f'not warping {raster_id} because it is not on disk')
             continue
         raster_path = raster_id_to_info_map[raster_id]['path']
@@ -276,7 +281,7 @@ def mult_by_columns(
     LOGGER.debug(raster_id_list)
     LOGGER.debug(raster_id_to_info_map)
     for index, raster_id in enumerate(raster_id_list):
-        if raster_id not in missing_id_list:
+        if raster_id not in missing_raster_id_set:
             raster_path_band_list.append(
                 (raster_id_to_info_map[raster_id]['aligned_path'], 1))
             raster_path_band_list.append(
