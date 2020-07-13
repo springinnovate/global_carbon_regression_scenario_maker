@@ -90,7 +90,6 @@ def parse_carbon_lulc_table(ipcc_carbon_table_path):
         header_line = carbon_table_file.readline()
         lulc_code_list = [int(lucode) for lucode in header_line.split(',')[1:]]
         max_code = max(lulc_code_list)
-        print(lulc_code_list)
 
         zone_lucode_to_carbon_map = {}
         for line in carbon_table_file:
