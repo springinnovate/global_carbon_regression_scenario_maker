@@ -282,7 +282,8 @@ def mult_by_columns(
 
     zero_nodata_indexes = {
         raster_id_to_info_map[raster_id]['index']
-        for raster_id in zero_nodata_symbols}
+        for raster_id in zero_nodata_symbols
+        if raster_id in raster_id_to_info_map}
 
     raster_path_band_list.append((target_nodata, 'raw'))
     raster_path_band_list.append((rpn_stack, 'raw'))
