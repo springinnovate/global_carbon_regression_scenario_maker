@@ -424,13 +424,13 @@ def main():
             IPCC_CARBON_DIR,
             f'ipcc_carbon_{scenario_id}_{bounding_box_str}.tif')
         # Units are in Mg/Ha but pixel area is in degrees^2 so multiply result
-        # by (111120 m/deg)**2*1 ha / 10000m^2
+        # by (111120 m/deg)**2*1 ha / 10000m^2 and C into CO2
         # TODO: I can convert this to varying area later if we want
         conversion_factor = (
             pygeoprocessing.get_raster_info(
                 lulc_raster_path)['pixel_size'][0]**2 *
             111120**2 *
-            (1/100000)**2)
+            (1/100000)**2) * (15.9992*2+12.011)/12.011
 
         task_graph.add_task(
             func=pygeoprocessing.raster_calculator,
@@ -528,9 +528,10 @@ def main():
             LULC_SCENARIO_RASTER_PATH_MAP.items():
         conversion_factor = (
             pygeoprocessing.get_raster_info(
-                lulc_scenario_raster_path)['pixel_size'][0]**2 *
-            111120**2 *
-            (1/100000)**2) * 0.47  # IPCC value to convert biomass to carbon
+                lulc_scenario_raster_path)['pixel_size'][0]**2 * (
+                111120**2 *
+                (1/100000)**2) * 0.47 * # IPCC value to convert biomass to C
+                (15.9992*2+12.011)/12.011)  # C into CO2
         forest_regression_scenario_raster_map[scenario_id] = os.path.join(
             FOREST_REGRESSION_RESULT_DIR,
             f'forest_regression_{scenario_id}_{bounding_box_str}.tif')
