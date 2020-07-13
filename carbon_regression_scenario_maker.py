@@ -74,12 +74,13 @@ BASE_LASSO_CONVOLUTION_RASTER_NAME = 'lulc_esa_smoothed_2014_10sec'
 LULC_SCENARIO_RASTER_PATH_MAP = {}
 
 
-def ipcc_carbon_op(lulc_array, zones_array, zone_lulc_to_carbon_map):
+def ipcc_carbon_op(
+        lulc_array, zones_array, zone_lulc_to_carbon_map, conversion_factor):
     result = numpy.zeros(lulc_array.shape)
     for zone_id in numpy.unique(zones_array):
         zone_mask = zones_array == zone_id
         result[zone_mask] = \
-            zone_lulc_to_carbon_map[zone_id][lulc_array[zone_mask]]
+            zone_lulc_to_carbon_map[zone_id][lulc_array[zone_mask]] * conversion_factor
     return result
 
 
@@ -371,12 +372,21 @@ def main():
         ipcc_carbon_raster_path = os.path.join(
             WORKSPACE_DIR,
             f'ipcc_carbon_{bounding_box_str}_{os.path.basename(lulc_raster_path)}')
+        # Units are in Mg/Ha but pixel area is in degrees^2 so multiply result
+        # by (111120 m/deg)**2*1 ha / 10000m^2
+        # TODO: I can convert this to varying area later if we want
+        conversion_factor = (
+            pygeoprocessing.get_raster_info(
+                lulc_raster_path)['pixel_size'][0]**2 *
+            111120**2 *
+            (1/100000)**2)
+
         task_graph.add_task(
             func=pygeoprocessing.raster_calculator,
             args=(
                 [(lulc_raster_path, 1), (rasterized_zones_raster_path, 1),
-                 (zone_lucode_to_carbon_map, 'raw')], ipcc_carbon_op,
-                ipcc_carbon_raster_path, gdal.GDT_Float32, -1),
+                 (zone_lucode_to_carbon_map, 'raw'), conversion_factor],
+                ipcc_carbon_op, ipcc_carbon_raster_path, gdal.GDT_Float32, -1),
             dependent_task_list=[rasterize_carbon_zone_task],
             target_path_list=[ipcc_carbon_raster_path],
             task_name=f'create carbon for {ipcc_carbon_raster_path}')
