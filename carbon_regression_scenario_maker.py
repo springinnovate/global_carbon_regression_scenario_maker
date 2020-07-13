@@ -62,6 +62,8 @@ ZERO_NODATA_SYMBOLS = {
     'sand_10sec',
     'silt_10sec',
     'soc_10sec',
+    'population_2015_30sec',
+    'population_2015_5min',
     }
 
 CARBON_ZONES_VECTOR_URI = 'gs://ecoshard-root/global_carbon_regression/carbon_zones_md5_aa16830f64d1ef66ebdf2552fb8a9c0d.gpkg'
