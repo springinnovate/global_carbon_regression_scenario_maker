@@ -47,7 +47,7 @@ MASK_TYPES = [
     ('not_forest_10sec', FOREST_CODES, 'inv'),
     ('forest_10sec', FOREST_CODES, '')]
 MASK_NODATA = 2
-MULT_BY_COLUMNS_NODATA = float(numpy.finfo('float32').min)
+MULT_BY_COLUMNS_NODATA = -1
 
 CARBON_ZONES_VECTOR_URI = 'gs://ecoshard-root/global_carbon_regression/carbon_zones_md5_aa16830f64d1ef66ebdf2552fb8a9c0d.gpkg'
 CARBON_ZONES_VECTOR_PATH = os.path.join(ECOSHARD_DIR, 'carbon_zones.gpkg')
@@ -566,7 +566,7 @@ def main():
     for scenario_id in LULC_SCENARIO_RASTER_PATH_MAP:
         regression_carbon_scenario_path_map[scenario_id] = os.path.join(
             WORKSPACE_DIR,
-            'regression_carbon_{scenario_id}_{bounding_box_str}.tif')
+            f'regression_carbon_{scenario_id}_{bounding_box_str}.tif')
         task_graph.add_task(
             func=raster_where,
             args=(
@@ -620,7 +620,7 @@ def main():
     except OSError:
         pass
     ipcc_carbon_marginal_value_raster = os.path.join(
-        WORKSPACE_DIR, f'marginal_value_ipcc_{bounding_box_str}.tif')
+        marginal_value_dir, f'marginal_value_ipcc_{bounding_box_str}.tif')
     task_graph.add_task(
         func=pygeoprocessing.raster_calculator,
         args=([
@@ -675,7 +675,7 @@ def main():
         regression_mask_task_list.append(mask_task)
 
     regression_carbon_marginal_value_raster = os.path.join(
-        WORKSPACE_DIR, f'marginal_value_regression_{bounding_box_str}.tif')
+        marginal_value_dir, f'marginal_value_regression_{bounding_box_str}.tif')
     task_graph.add_task(
         func=pygeoprocessing.raster_calculator,
         args=([
