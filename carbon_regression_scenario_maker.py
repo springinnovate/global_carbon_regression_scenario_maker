@@ -576,9 +576,14 @@ def main():
     # combine both the non-forest and forest into one map for each
     # scenario based on their masks
     regression_carbon_scenario_path_map = {}
+    REGRESSION_TOTAL_DIR = os.path.join(WORKSPACE_DIR, 'regression_total')
+    try:
+        os.makedirs(REGRESSION_TOTAL_DIR)
+    except OSError:
+        pass
     for scenario_id in LULC_SCENARIO_RASTER_PATH_MAP:
         regression_carbon_scenario_path_map[scenario_id] = os.path.join(
-            WORKSPACE_DIR,
+            REGRESSION_TOTAL_DIR,
             f'regression_carbon_{scenario_id}_{bounding_box_str}.tif')
         task_graph.add_task(
             func=raster_where,
