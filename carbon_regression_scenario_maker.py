@@ -73,6 +73,31 @@ BASE_LASSO_CONVOLUTION_RASTER_NAME = 'lulc_esa_smoothed_2014_10sec'
 LULC_SCENARIO_RASTER_PATH_MAP = {}
 
 
+def sub_pos_op(array_a, array_b):
+    """Assume nodata value is negative and the same for a and b."""
+    result = array_a.copy()
+    mask = array_b > 0
+    result[mask] -= array_b[mask]
+    return array_b
+
+
+def where_op(condition_array, if_true_array, else_array):
+    result = numpy.copy(else_array)
+    mask = condition_array == 1
+    result[mask] = if_true_array[mask]
+    return result
+
+
+def raster_where(
+        condition_raster_path, if_true_raster_path, else_raster_path,
+        target_raster_path):
+    pygeoprocessing.raster_calculator(
+        [(condition_raster_path, 1), (if_true_raster_path, 1),
+         (else_raster_path, 1)], where_op, target_raster_path,
+        gdal.GDT_Float32,
+        pygeoprocessing.get_raster_info(if_true_raster_path)['nodata'][0])
+
+
 def ipcc_carbon_op(
         lulc_array, zones_array, zone_lulc_to_carbon_map, conversion_factor):
     result = numpy.zeros(lulc_array.shape)
@@ -348,12 +373,16 @@ def main():
     fetch_data(args.bounding_box, clipped_data_dir, task_graph)
 
     # IPCC Approach
-    # TODO: convert IPCC table into something I can use
-    #   for each landcover map,
-    #       rasterize the carbon zones
-    #       raster calculate the table + zones + landcover map to a carbon map
+    # Create carbon stocks for ESA 2014 and restoration scenario
     rasterize_carbon_zone_task = None
-    for _, lulc_raster_path in LULC_SCENARIO_RASTER_PATH_MAP.items():
+    ipcc_carbon_scenario_raster_map = {}
+    IPCC_CARBON_DIR = os.path.join(WORKSPACE_DIR, 'ipcc_carbon')
+    try:
+        os.makedirs(IPCC_CARBON_DIR)
+    except OSError:
+        pass
+
+    for scenario_id, lulc_raster_path in LULC_SCENARIO_RASTER_PATH_MAP.items():
         if rasterize_carbon_zone_task is None:
             rasterized_zones_raster_path = os.path.join(
                 clipped_data_dir, 'carbon_zones.tif')
@@ -367,9 +396,9 @@ def main():
             zone_lucode_to_carbon_map = parse_carbon_lulc_table(
                 IPCC_CARBON_TABLE_PATH)
 
-        ipcc_carbon_raster_path = os.path.join(
-            WORKSPACE_DIR,
-            f'ipcc_carbon_{bounding_box_str}_{os.path.basename(lulc_raster_path)}')
+        ipcc_carbon_scenario_raster_map[scenario_id] = os.path.join(
+            IPCC_CARBON_DIR,
+            f'ipcc_carbon_{scenario_id}_{bounding_box_str}.tif')
         # Units are in Mg/Ha but pixel area is in degrees^2 so multiply result
         # by (111120 m/deg)**2*1 ha / 10000m^2
         # TODO: I can convert this to varying area later if we want
@@ -385,10 +414,12 @@ def main():
                 [(lulc_raster_path, 1), (rasterized_zones_raster_path, 1),
                  (zone_lucode_to_carbon_map, 'raw'),
                  (conversion_factor, 'raw')],
-                ipcc_carbon_op, ipcc_carbon_raster_path, gdal.GDT_Float32, -1),
+                ipcc_carbon_op, ipcc_carbon_scenario_raster_map[scenario_id],
+                gdal.GDT_Float32, -1),
             dependent_task_list=[rasterize_carbon_zone_task],
-            target_path_list=[ipcc_carbon_raster_path],
-            task_name=f'create carbon for {ipcc_carbon_raster_path}')
+            target_path_list=[ipcc_carbon_scenario_raster_map[scenario_id]],
+            task_name=f'''create carbon for {
+                ipcc_carbon_scenario_raster_map[scenario_id]}''')
 
     # FOREST REGRESSION
 
@@ -450,8 +481,7 @@ def main():
                 convolution_task_list.append(convolution_task)
     task_graph.join()
 
-    # 2) Apply the mult_rasters_by_columns.py script to `FOREST_REGRESSION_LASSO_TABLE_PATH` and
-    #    the new convolution rasters for forest classes only.
+    # 2) Evalute the forest regression for each scenario
     LOGGER.info("Forest Regression step 2")
 
     mult_by_columns_workspace = os.path.join(
@@ -461,53 +491,42 @@ def main():
     except OSError:
         pass
     task_graph.join()
-    lasso_eval_for_esa2014_path = os.path.join(
-        CHURN_DIR, f'pre_mask_forest_regression_esa2014_eval_{bounding_box_str}.tif')
-    mult_by_columns_library.mult_by_columns(
-        FOREST_REGRESSION_LASSO_TABLE_PATH, clipped_data_dir,
-        mult_by_columns_workspace,
-        'lulc_esa_smoothed_2014_10sec', 'esa2014',
-        args.bounding_box, TARGET_PIXEL_SIZE, lasso_eval_for_esa2014_path,
-        task_graph, zero_nodata=False,
-        target_nodata=MULT_BY_COLUMNS_NODATA)
 
-    # TODO -- multiply lasso_eval for_esa2014 by scenario_lulc_mask_raster_path
-    # _ = task_graph.add_task(
-    LOGGER.info('mask forest values for each scenario')
+    FOREST_REGRESSION_RESULT_DIR = os.path.join(
+        WORKSPACE_DIR, 'forest_regression_rasters')
+    try:
+        os.makedirs(FOREST_REGRESSION_RESULT_DIR)
+    except OSError:
+        pass
+
+    forest_regression_scenario_raster_map = {}
     for scenario_id, lulc_scenario_raster_path in \
             LULC_SCENARIO_RASTER_PATH_MAP.items():
-        scenario_lulc_forest_mask_raster_path = os.path.join(
-            clipped_data_dir, f'mask_of_forest_{scenario_id}.tif')
-        forest_regression_esa2014_eval_raster_path = os.path.join(
-            WORKSPACE_DIR, f'forest_regression_{scenario_id}_eval_{bounding_box_str}.tif')
-        pygeoprocessing.raster_calculator(
-            [(scenario_lulc_forest_mask_raster_path, 1),
-             (lasso_eval_for_esa2014_path, 1),
-             (MASK_NODATA, 'raw'),
-             (MULT_BY_COLUMNS_NODATA, 'raw'),
-             (MULT_BY_COLUMNS_NODATA, 'raw'), ],
-            mult_op, forest_regression_esa2014_eval_raster_path, gdal.GDT_Float32,
-            MULT_BY_COLUMNS_NODATA)
+        forest_regression_scenario_raster_map[scenario_id] = os.path.join(
+            FOREST_REGRESSION_RESULT_DIR,
+            f'forest_regression_{scenario_id}_{bounding_box_str}.tif')
+
+        mult_by_columns_library.mult_by_columns(
+            FOREST_REGRESSION_LASSO_TABLE_PATH, clipped_data_dir,
+            mult_by_columns_workspace,
+            'lulc_esa_smoothed_2014_10sec', scenario_id,
+            args.bounding_box, TARGET_PIXEL_SIZE,
+            forest_regression_scenario_raster_map[scenario_id],
+            task_graph, zero_nodata=False,
+            target_nodata=MULT_BY_COLUMNS_NODATA)
 
     # NON-FOREST REGRESSION
+    NON_FOREST_REGRESSION_RESULT_DIR = os.path.join(
+        WORKSPACE_DIR, 'non_forest_regression_rasters')
+    try:
+        os.makedirs(NON_FOREST_REGRESSION_RESULT_DIR)
+    except OSError:
+        pass
 
-    # Apply non-forest regression to non-forest classes using
-    # mult_rasters_by_columns. Each of the non-forest LULC classes are
-    # interacted with each of the predictor variables, so in order to run the
-    # mult_rasters script on the ESA or PNV scenario maps, masks of each of
-    # those LULC classes will need to be made as files called
-    # lulc_esacci_2014_smoothed_class_10 - _220 (collapsing all the 11, 12 etc
-    # back to its 10's place).
-
-    LOGGER.info('create the lulc_esacci_2014_smoothed_class_* rasters')
-
-    # TODO: run the mult_by_columns on esa2014 and PNG and maybe the other
-    # scenario but collapose their landcover rasters down to the right class
-    # or whatever with the masks collapsed
+    LOGGER.info('evalute non-forest regression')
+    non_forest_regression_scenario_raster_map = {}
     for scenario_id, lulc_raster_path in LULC_SCENARIO_RASTER_PATH_MAP.items():
         for class_id in range(10, 221, 10):
-            # this path will ensure it's picked up later by the mult_by_columns
-            # function
             collapsed_class_raster_path = os.path.join(
                 clipped_data_dir,
                 f'{scenario_id}_{class_id}.tif')
@@ -526,36 +545,38 @@ def main():
             f'lasso_not_forest_interacted_dummies_equation_string_{alpha}_'
             f'params.csv')
 
-        pre_mask_non_forest_regression_eval_raster_path = os.path.join(
-            CHURN_DIR,
-            f'pre_mask_non_forest_regression_{scenario_id}_{alpha}_'
+        non_forest_regression_scenario_raster_map[scenario_id] = os.path.join(
+            NON_FOREST_REGRESSION_RESULT_DIR,
+            f'non_forest_regression_{scenario_id}_{alpha}_'
             f'{bounding_box_str}.tif')
         mult_by_columns_library.mult_by_columns(
             lasso_table_path, clipped_data_dir,
             mult_by_columns_workspace,
             'lulc_esacci_2014_smoothed_class', scenario_id,
             args.bounding_box, TARGET_PIXEL_SIZE,
-            pre_mask_non_forest_regression_eval_raster_path,
+            non_forest_regression_scenario_raster_map[scenario_id],
             task_graph, zero_nodata=False,
             target_nodata=MULT_BY_COLUMNS_NODATA)
 
-        non_forest_regression_eval_raster_path = os.path.join(
+    task_graph.join()
+
+    # combine both the non-forest and forest into one map for each
+    # scenario based on their masks
+    regression_carbon_scenario_path_map = {}
+    for scenario_id in LULC_SCENARIO_RASTER_PATH_MAP:
+        regression_carbon_scenario_path_map[scenario_id] = os.path.join(
             WORKSPACE_DIR,
-            f'non_forest_regression_{scenario_id}_{alpha}_'
-            f'{bounding_box_str}.tif')
-
-        not_forest_mask_raster_path = os.path.join(
-            clipped_data_dir,
-            f'mask_of_not_forest_10sec_{scenario_id}.tif')
-
-        pygeoprocessing.raster_calculator(
-            [(not_forest_mask_raster_path, 1),
-             (pre_mask_non_forest_regression_eval_raster_path, 1),
-             (MASK_NODATA, 'raw'),
-             (MULT_BY_COLUMNS_NODATA, 'raw'),
-             (MULT_BY_COLUMNS_NODATA, 'raw'), ],
-            mult_op, non_forest_regression_eval_raster_path,
-            gdal.GDT_Float32, MULT_BY_COLUMNS_NODATA)
+            'regression_carbon_{scenario_id}_{bounding_box_str}.tif')
+        task_graph.add_task(
+            func=raster_where,
+            args=(
+                mask_path_task_map[scenario_id]['forest_10sec'][0],
+                forest_regression_scenario_raster_map[scenario_id],
+                non_forest_regression_scenario_raster_map[scenario_id],
+                regression_carbon_scenario_path_map[scenario_id]),
+            target_path_list=[
+                regression_carbon_scenario_path_map[scenario_id]],
+            task_name=f'combine forest/nonforest for {scenario_id}')
 
     task_graph.join()
 
@@ -566,6 +587,54 @@ def main():
     #    An IPCC-based marginal value map will be created as the difference
     #    between the two, and pixels selected by the largest marginal value
     #    until the 3 Pg target is reached.
+
+    # mask ipcc_carbon_scenario_raster_map to forest only from
+    # restoration scenario
+    masked_ipcc_carbon_raster_map = {}
+    ipcc_mask_task_list = []
+    for scenario_id in LULC_SCENARIO_RASTER_PATH_MAP:
+        masked_ipcc_carbon_raster_map[scenario_id] = os.path.join(
+            WORKSPACE_DIR,
+            f'ipcc_carbon_forest_only_{scenario_id}_{bounding_box_str}.tif')
+
+        # specifically masking to 'restoration limited'
+        mask_task = task_graph.add_task(
+            func=pygeoprocessing.raster_calculator,
+            args=(
+                [(ipcc_carbon_scenario_raster_map[scenario_id], 1),
+                 (mask_path_task_map['restoration_limited']['forest_10sec'][0],
+                  1), (-1, 'raw'), (MASK_NODATA, 'raw'), (-1, 'raw')],
+                mult_op, masked_ipcc_carbon_raster_map[scenario_id],
+                gdal.GDT_Float32, -1),
+            target_path_list=[masked_ipcc_carbon_raster_map[scenario_id]],
+            task_name=f'mask out forest only ipcc {scenario_id}')
+        ipcc_mask_task_list.append(mask_task)
+
+    # subtract
+    #   masked_ipcc_carbon_raster_map[esa2014]
+    #   masked_ipcc_carbon_raster_map[restoration_limited]
+
+    marginal_value_dir = os.path.join(WORKSPACE_DIR, 'marginal_values')
+    try:
+        os.makedirs(marginal_value_dir)
+    except OSError:
+        pass
+    ipcc_carbon_marginal_value_raster = os.path.join(
+        WORKSPACE_DIR, f'marginal_value_ipcc_{bounding_box_str}.tif')
+    task_graph.add_task(
+        func=pygeoprocessing.raster_calculator,
+        args=([
+            (masked_ipcc_carbon_raster_map['restoration_limited'], 1),
+            (masked_ipcc_carbon_raster_map['esa2014'], 1),
+            ],
+            sub_pos_op, ipcc_carbon_marginal_value_raster, gdal.GDT_Float32,
+            -1),
+        dependent_task_list=ipcc_mask_task_list,
+        target_path_list=[ipcc_carbon_marginal_value_raster],
+        task_name='make ipcc marginal value raster')
+
+    # TODO: mask out forest from IPCC to have a forest only map
+    # TODO: set up raster calculation to subtract IPCC forest only from
 
     # 2) For the regression approach, the forest regression model will be
     #    applied to the forest pixels and the non-forest regression model will
@@ -583,21 +652,41 @@ def main():
     #    all viable non-forest pixels within them restored, until the 3 Pg
     #    target is reached.
 
+    # mask the regression rasters
+    masked_regression_carbon_raster_map = {}
+    regression_mask_task_list = []
+    for scenario_id in LULC_SCENARIO_RASTER_PATH_MAP:
+        masked_regression_carbon_raster_map[scenario_id] = os.path.join(
+            WORKSPACE_DIR,
+            f'regression_carbon_forest_only_{scenario_id}_'
+            f'{bounding_box_str}.tif')
 
-    # target_result_path = os.path.join(
-    #     WORKSPACE_DIR, f'lasso_eval_{lulc_basename}.tif')
-    # lasso_mult_workspace_dir = os.path.join(
-    #     WORKSPACE_DIR, lulc_basename)
-    # task_graph.add_task(
-    #     func=mult_by_columns_library.mult_by_columns,
-    #     args=(
-    #         FOREST_REGRESSION_LASSO_TABLE_PATH, clipped_data_dir, lasso_mult_workspace_dir,
-    #         BASE_LASSO_CONVOLUTION_RASTER_NAME, lulc_basename, None,
-    #         0.002777777777777777884, target_result_path),
-    #     dependent_task_list=convolution_task_list + [
-    #         download_inputs_task, download_lasso_task],
-    #     target_path_list=[target_result_path],
-    #     task_name=f'lasso eval of {lulc_basename}')
+        # specifically masking to 'restoration limited'
+        mask_task = task_graph.add_task(
+            func=pygeoprocessing.raster_calculator,
+            args=(
+                [(regression_carbon_scenario_path_map[scenario_id], 1),
+                 (mask_path_task_map['restoration_limited']['forest_10sec'][0],
+                  1), (-1, 'raw'), (MASK_NODATA, 'raw'), (-1, 'raw')],
+                mult_op, masked_regression_carbon_raster_map[scenario_id],
+                gdal.GDT_Float32, -1),
+            target_path_list=[masked_regression_carbon_raster_map[scenario_id]],
+            task_name=f'mask out forest only regression {scenario_id}')
+        regression_mask_task_list.append(mask_task)
+
+    regression_carbon_marginal_value_raster = os.path.join(
+        WORKSPACE_DIR, f'marginal_value_regression_{bounding_box_str}.tif')
+    task_graph.add_task(
+        func=pygeoprocessing.raster_calculator,
+        args=([
+            (masked_regression_carbon_raster_map['restoration_limited'], 1),
+            (masked_regression_carbon_raster_map['esa2014'], 1),
+            ],
+            sub_pos_op, regression_carbon_marginal_value_raster,
+            gdal.GDT_Float32, -1),
+        dependent_task_list=regression_mask_task_list,
+        target_path_list=[regression_carbon_marginal_value_raster],
+        task_name='make regression marginal value raster')
 
     task_graph.close()
     task_graph.join()
