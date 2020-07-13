@@ -260,9 +260,6 @@ def mult_by_columns(
     # align rasters and cast to list because we'll rewrite
     # raster_id_to_path_map object
     for raster_id in raster_id_to_info_map:
-        if raster_id in missing_raster_id_set:
-            LOGGER.warn(f'not warping {raster_id} because it is not on disk')
-            continue
         raster_path = raster_id_to_info_map[raster_id]['path']
         raster_basename = os.path.splitext(os.path.basename(raster_path))[0]
         aligned_raster_path = os.path.join(

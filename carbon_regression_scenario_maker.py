@@ -469,7 +469,7 @@ def main():
         'lulc_esa_smoothed_2014_10sec', 'esa2014',
         args.bounding_box, TARGET_PIXEL_SIZE, lasso_eval_for_esa2014_path,
         task_graph, zero_nodata=False,
-        target_nodata=MULT_BY_COLUMNS_NODATA, allow_missing_data=True)
+        target_nodata=MULT_BY_COLUMNS_NODATA, allow_missing_data=False)
 
     # TODO -- multiply lasso_eval for_esa2014 by scenario_lulc_mask_raster_path
     # _ = task_graph.add_task(
