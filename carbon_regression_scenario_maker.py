@@ -509,8 +509,15 @@ def main():
                 task_name=f'eval for collapsed_class_raster_path')
         for lasso_table_path in glob.glob(
                 os.path.join(NON_FOREST_REGRESSION_LASSO_TABLES_DIR, '*.csv')):
-            alpha = re.match(
-                '.*alpha(.*)_.*', os.path.basename(lasso_table_path)).group(1)
+            try:
+                alpha = re.match(
+                    '.*alpha(.*)_.*', os.path.basename(
+                        lasso_table_path)).group(1)
+            except AttributeError:
+                LOGGER.warn(
+                    f'{lasso_table_path} does not conform to the "alpha" '
+                    'naming scheme')
+                continue
             pre_mask_non_forest_regression_eval_raster_path = os.path.join(
                 CHURN_DIR,
                 f'pre_mask_non_forest_regression_{scenario_id}_{alpha}_'
