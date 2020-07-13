@@ -455,7 +455,8 @@ def main():
     #    the new convolution rasters for forest classes only.
     LOGGER.info("Forest Regression step 2")
 
-    mult_by_columns_workspace = os.path.join(WORKSPACE_DIR, bounding_box_str)
+    mult_by_columns_workspace = os.path.join(
+        WORKSPACE_DIR, 'mult_by_columns_workspace', bounding_box_str)
     try:
         os.makedirs(mult_by_columns_workspace)
     except OSError:
