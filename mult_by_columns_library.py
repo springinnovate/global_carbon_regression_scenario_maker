@@ -47,16 +47,22 @@ def raster_rpn_calculator_op(*args_list):
               args_list.
             - N+4th value is "zero nodata" if true then missing nodata are
               treated as zeros unless the entire stack is nodata
+            - N+5th value is "conversion factor" to multiply the final result
+              by if it is not None.
 
     Returns:
         evaluation of the RPN calculation
     """
-    n = len(args_list)-4
+    n = len(args_list)-5
     result = numpy.empty(args_list[0].shape, dtype=numpy.float32)
     result[:] = args_list[n]  # target nodata
     rpn_stack = list(args_list[n+1])
     info_dict = args_list[n+2]
     zero_nodata = args_list[n+3]
+    conversion_factor = args_list[n+4]
+    if conversion_factor is None:
+        conversion_factor = 1
+
     if zero_nodata:
         valid_mask = numpy.zeros(args_list[0].shape, dtype=numpy.bool)
     else:
@@ -97,7 +103,7 @@ def raster_rpn_calculator_op(*args_list):
             else:
                 accumulator_stack.append(val)
 
-    result[valid_mask] = accumulator_stack.pop(0)
+    result[valid_mask] = accumulator_stack.pop(0) * conversion_factor
     if accumulator_stack:
         raise RuntimeError(
             f'accumulator_stack not empty: {accumulator_stack}')
@@ -108,7 +114,8 @@ def mult_by_columns(
         lasso_table_path, data_dir, workspace_dir,
         base_convolution_raster_id, target_raster_id, bounding_box,
         pixel_size, target_result_path, task_graph,
-        zero_nodata=False, target_nodata=numpy.finfo('float32').min):
+        zero_nodata=False, target_nodata=numpy.finfo('float32').min,
+        conversion_factor=None):
     """Calculate large regression.
 
     Args:
@@ -134,6 +141,8 @@ def mult_by_columns(
             absent any nodata pixel in a stack will cause the output pixel to
             be nodata
         target_nodata (float): desired target nodata value
+        conversion_factor (float): if not None, this factor is multiplied by
+            the final result befor going into target
 
     Returns:
         None
@@ -286,6 +295,7 @@ def mult_by_columns(
     raster_path_band_list.append((rpn_stack, 'raw'))
     raster_path_band_list.append((raster_id_to_info_map, 'raw'))
     raster_path_band_list.append((zero_nodata, 'raw'))
+    raster_path_band_list.append((conversion_factor, 'raw'))
     LOGGER.debug(rpn_stack)
 
     # wait for rasters to align

@@ -415,7 +415,7 @@ def main():
                  (zone_lucode_to_carbon_map, 'raw'),
                  (conversion_factor, 'raw')],
                 ipcc_carbon_op, ipcc_carbon_scenario_raster_map[scenario_id],
-                gdal.GDT_Float32, -1),
+                gdal.GDT_Float32, MULT_BY_COLUMNS_NODATA),
             dependent_task_list=[rasterize_carbon_zone_task],
             target_path_list=[ipcc_carbon_scenario_raster_map[scenario_id]],
             task_name=f'''create carbon for {
@@ -502,6 +502,11 @@ def main():
     forest_regression_scenario_raster_map = {}
     for scenario_id, lulc_scenario_raster_path in \
             LULC_SCENARIO_RASTER_PATH_MAP.items():
+        conversion_factor = (
+            pygeoprocessing.get_raster_info(
+                lulc_scenario_raster_path)['pixel_size'][0]**2 *
+            111120**2 *
+            (1/100000)**2)
         forest_regression_scenario_raster_map[scenario_id] = os.path.join(
             FOREST_REGRESSION_RESULT_DIR,
             f'forest_regression_{scenario_id}_{bounding_box_str}.tif')
@@ -513,7 +518,8 @@ def main():
             args.bounding_box, TARGET_PIXEL_SIZE,
             forest_regression_scenario_raster_map[scenario_id],
             task_graph, zero_nodata=False,
-            target_nodata=MULT_BY_COLUMNS_NODATA)
+            target_nodata=MULT_BY_COLUMNS_NODATA,
+            conversion_factor=conversion_factor)
 
     # NON-FOREST REGRESSION
     NON_FOREST_REGRESSION_RESULT_DIR = os.path.join(
@@ -526,6 +532,11 @@ def main():
     LOGGER.info('evalute non-forest regression')
     non_forest_regression_scenario_raster_map = {}
     for scenario_id, lulc_raster_path in LULC_SCENARIO_RASTER_PATH_MAP.items():
+        conversion_factor = (
+            pygeoprocessing.get_raster_info(
+                lulc_raster_path)['pixel_size'][0]**2 *
+            111120**2 *
+            (1/100000)**2)
         for class_id in range(10, 221, 10):
             collapsed_class_raster_path = os.path.join(
                 clipped_data_dir,
@@ -549,6 +560,7 @@ def main():
             NON_FOREST_REGRESSION_RESULT_DIR,
             f'non_forest_regression_{scenario_id}_{alpha}_'
             f'{bounding_box_str}.tif')
+
         mult_by_columns_library.mult_by_columns(
             lasso_table_path, clipped_data_dir,
             mult_by_columns_workspace,
@@ -556,7 +568,8 @@ def main():
             args.bounding_box, TARGET_PIXEL_SIZE,
             non_forest_regression_scenario_raster_map[scenario_id],
             task_graph, zero_nodata=False,
-            target_nodata=MULT_BY_COLUMNS_NODATA)
+            target_nodata=MULT_BY_COLUMNS_NODATA,
+            conversion_factor=conversion_factor)
 
     task_graph.join()
 
@@ -603,9 +616,10 @@ def main():
             args=(
                 [(ipcc_carbon_scenario_raster_map[scenario_id], 1),
                  (mask_path_task_map['restoration_limited']['forest_10sec'][0],
-                  1), (-1, 'raw'), (MASK_NODATA, 'raw'), (-1, 'raw')],
+                  1), (MULT_BY_COLUMNS_NODATA, 'raw'), (MASK_NODATA, 'raw'),
+                 (MULT_BY_COLUMNS_NODATA, 'raw')],
                 mult_op, masked_ipcc_carbon_raster_map[scenario_id],
-                gdal.GDT_Float32, -1),
+                gdal.GDT_Float32, MULT_BY_COLUMNS_NODATA),
             target_path_list=[masked_ipcc_carbon_raster_map[scenario_id]],
             task_name=f'mask out forest only ipcc {scenario_id}')
         ipcc_mask_task_list.append(mask_task)
@@ -628,7 +642,7 @@ def main():
             (masked_ipcc_carbon_raster_map['esa2014'], 1),
             ],
             sub_pos_op, ipcc_carbon_marginal_value_raster, gdal.GDT_Float32,
-            -1),
+            MULT_BY_COLUMNS_NODATA),
         dependent_task_list=ipcc_mask_task_list,
         target_path_list=[ipcc_carbon_marginal_value_raster],
         task_name='make ipcc marginal value raster')
@@ -667,9 +681,10 @@ def main():
             args=(
                 [(regression_carbon_scenario_path_map[scenario_id], 1),
                  (mask_path_task_map['restoration_limited']['forest_10sec'][0],
-                  1), (-1, 'raw'), (MASK_NODATA, 'raw'), (-1, 'raw')],
+                  1), (MULT_BY_COLUMNS_NODATA, 'raw'), (MASK_NODATA, 'raw'),
+                 (MULT_BY_COLUMNS_NODATA, 'raw')],
                 mult_op, masked_regression_carbon_raster_map[scenario_id],
-                gdal.GDT_Float32, -1),
+                gdal.GDT_Float32, MULT_BY_COLUMNS_NODATA),
             target_path_list=[masked_regression_carbon_raster_map[scenario_id]],
             task_name=f'mask out forest only regression {scenario_id}')
         regression_mask_task_list.append(mask_task)
@@ -683,7 +698,7 @@ def main():
             (masked_regression_carbon_raster_map['esa2014'], 1),
             ],
             sub_pos_op, regression_carbon_marginal_value_raster,
-            gdal.GDT_Float32, -1),
+            gdal.GDT_Float32, MULT_BY_COLUMNS_NODATA),
         dependent_task_list=regression_mask_task_list,
         target_path_list=[regression_carbon_marginal_value_raster],
         task_name='make regression marginal value raster')
