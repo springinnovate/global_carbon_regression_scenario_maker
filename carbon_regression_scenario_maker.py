@@ -49,7 +49,16 @@ MASK_TYPES = [
 MASK_NODATA = 2
 MULT_BY_COLUMNS_NODATA = -1
 
-ZERO_NODATA_SYMBOLS = {'population_2015_5min', 'population_2015_30sec'}
+ZERO_NODATA_SYMBOLS = {
+    'population_2015_5min',
+    'population_2015_30sec',
+    'clay_10sec',
+    'cvfo_10sec',
+    'bdod_10sec',
+    'soc_10sec',
+    'silt_10sec',
+    'sand_10sec',
+    }
 
 CARBON_ZONES_VECTOR_URI = 'gs://ecoshard-root/global_carbon_regression/carbon_zones_md5_aa16830f64d1ef66ebdf2552fb8a9c0d.gpkg'
 CARBON_ZONES_VECTOR_PATH = os.path.join(ECOSHARD_DIR, 'carbon_zones.gpkg')
