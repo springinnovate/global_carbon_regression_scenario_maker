@@ -384,7 +384,8 @@ def main():
             func=pygeoprocessing.raster_calculator,
             args=(
                 [(lulc_raster_path, 1), (rasterized_zones_raster_path, 1),
-                 (zone_lucode_to_carbon_map, 'raw'), conversion_factor],
+                 (zone_lucode_to_carbon_map, 'raw'),
+                 (conversion_factor, 'raw')],
                 ipcc_carbon_op, ipcc_carbon_raster_path, gdal.GDT_Float32, -1),
             dependent_task_list=[rasterize_carbon_zone_task],
             target_path_list=[ipcc_carbon_raster_path],
