@@ -53,7 +53,6 @@ ZERO_NODATA_SYMBOLS = {
     'population_2015_5min',
     'population_2015_30sec',
     'clay_10sec',
-    'cvfo_10sec',
     'bdod_10sec',
     'soc_10sec',
     'silt_10sec',
