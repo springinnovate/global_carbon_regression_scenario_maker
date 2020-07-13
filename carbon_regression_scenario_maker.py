@@ -519,47 +519,43 @@ def main():
                     collapsed_class_raster_path),
                 target_path_list=[collapsed_class_raster_path],
                 task_name=f'eval for collapsed_class_raster_path')
-        for lasso_table_path in glob.glob(
-                os.path.join(NON_FOREST_REGRESSION_LASSO_TABLES_DIR, '*.csv')):
-            try:
-                alpha = re.match(
-                    '.*alpha(.*)_.*', os.path.basename(
-                        lasso_table_path)).group(1)
-            except AttributeError:
-                LOGGER.warn(
-                    f'{lasso_table_path} does not conform to the "alpha" '
-                    'naming scheme')
-                continue
-            pre_mask_non_forest_regression_eval_raster_path = os.path.join(
-                CHURN_DIR,
-                f'pre_mask_non_forest_regression_{scenario_id}_{alpha}_'
-                f'{bounding_box_str}.tif')
-            mult_by_columns_library.mult_by_columns(
-                lasso_table_path, clipped_data_dir,
-                mult_by_columns_workspace,
-                'lulc_esacci_2014_smoothed_class', scenario_id,
-                args.bounding_box, TARGET_PIXEL_SIZE,
-                pre_mask_non_forest_regression_eval_raster_path,
-                task_graph, zero_nodata=False,
-                target_nodata=MULT_BY_COLUMNS_NODATA)
 
-            non_forest_regression_eval_raster_path = os.path.join(
-                WORKSPACE_DIR,
-                f'non_forest_regression_{scenario_id}_{alpha}_'
-                f'{bounding_box_str}.tif')
+        alpha = 'alpha0-0001'
+        lasso_table_path = os.path.join(
+            NON_FOREST_REGRESSION_LASSO_TABLES_DIR,
+            f'lasso_not_forest_interacted_dummies_equation_string_{alpha}_'
+            f'params.csv')
 
-            not_forest_mask_raster_path = os.path.join(
-                clipped_data_dir,
-                f'mask_of_not_forest_10sec_{scenario_id}.tif')
+        pre_mask_non_forest_regression_eval_raster_path = os.path.join(
+            CHURN_DIR,
+            f'pre_mask_non_forest_regression_{scenario_id}_{alpha}_'
+            f'{bounding_box_str}.tif')
+        mult_by_columns_library.mult_by_columns(
+            lasso_table_path, clipped_data_dir,
+            mult_by_columns_workspace,
+            'lulc_esacci_2014_smoothed_class', scenario_id,
+            args.bounding_box, TARGET_PIXEL_SIZE,
+            pre_mask_non_forest_regression_eval_raster_path,
+            task_graph, zero_nodata=False,
+            target_nodata=MULT_BY_COLUMNS_NODATA)
 
-            pygeoprocessing.raster_calculator(
-                [(not_forest_mask_raster_path, 1),
-                 (pre_mask_non_forest_regression_eval_raster_path, 1),
-                 (MASK_NODATA, 'raw'),
-                 (MULT_BY_COLUMNS_NODATA, 'raw'),
-                 (MULT_BY_COLUMNS_NODATA, 'raw'), ],
-                mult_op, non_forest_regression_eval_raster_path,
-                gdal.GDT_Float32, MULT_BY_COLUMNS_NODATA)
+        non_forest_regression_eval_raster_path = os.path.join(
+            WORKSPACE_DIR,
+            f'non_forest_regression_{scenario_id}_{alpha}_'
+            f'{bounding_box_str}.tif')
+
+        not_forest_mask_raster_path = os.path.join(
+            clipped_data_dir,
+            f'mask_of_not_forest_10sec_{scenario_id}.tif')
+
+        pygeoprocessing.raster_calculator(
+            [(not_forest_mask_raster_path, 1),
+             (pre_mask_non_forest_regression_eval_raster_path, 1),
+             (MASK_NODATA, 'raw'),
+             (MULT_BY_COLUMNS_NODATA, 'raw'),
+             (MULT_BY_COLUMNS_NODATA, 'raw'), ],
+            mult_op, non_forest_regression_eval_raster_path,
+            gdal.GDT_Float32, MULT_BY_COLUMNS_NODATA)
 
     task_graph.join()
 
