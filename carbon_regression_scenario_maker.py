@@ -473,19 +473,21 @@ def main():
 
     # TODO -- multiply lasso_eval for_esa2014 by scenario_lulc_mask_raster_path
     # _ = task_graph.add_task(
-    LOGGER.info('mask forest values')
-    scenario_lulc_forest_mask_raster_path = os.path.join(
-        clipped_data_dir, f'mask_of_forest_10sec_esa2014.tif')
-    forest_regression_esa2014_eval_raster_path = os.path.join(
-        WORKSPACE_DIR, f'forest_regression_esa2014_eval_{bounding_box_str}.tif')
-    pygeoprocessing.raster_calculator(
-        [(scenario_lulc_forest_mask_raster_path, 1),
-         (lasso_eval_for_esa2014_path, 1),
-         (MASK_NODATA, 'raw'),
-         (MULT_BY_COLUMNS_NODATA, 'raw'),
-         (MULT_BY_COLUMNS_NODATA, 'raw'), ],
-        mult_op, forest_regression_esa2014_eval_raster_path, gdal.GDT_Float32,
-        MULT_BY_COLUMNS_NODATA)
+    LOGGER.info('mask forest values for each scenario')
+    for scenario_id, lulc_scenario_raster_path in \
+            LULC_SCENARIO_RASTER_PATH_MAP.items():
+        scenario_lulc_forest_mask_raster_path = os.path.join(
+            clipped_data_dir, f'mask_of_forest_{scenario_id}.tif')
+        forest_regression_esa2014_eval_raster_path = os.path.join(
+            WORKSPACE_DIR, f'forest_regression_{scenario_id}_eval_{bounding_box_str}.tif')
+        pygeoprocessing.raster_calculator(
+            [(scenario_lulc_forest_mask_raster_path, 1),
+             (lasso_eval_for_esa2014_path, 1),
+             (MASK_NODATA, 'raw'),
+             (MULT_BY_COLUMNS_NODATA, 'raw'),
+             (MULT_BY_COLUMNS_NODATA, 'raw'), ],
+            mult_op, forest_regression_esa2014_eval_raster_path, gdal.GDT_Float32,
+            MULT_BY_COLUMNS_NODATA)
 
     # NON-FOREST REGRESSION
 
