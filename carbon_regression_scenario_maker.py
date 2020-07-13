@@ -51,15 +51,14 @@ MULT_BY_COLUMNS_NODATA = -1
 
 ZERO_NODATA_SYMBOLS = {
     'bdod_10sec',
+    'cfvo_10sec',
     'clay_10sec',
-    'cvfo_10sec',
+    'is_cropland_10sec',
     'ndvcec015_10sec',
     'nitrogen_10sec',
     'ocd_10sec',
     'ocs_10sec',
     'phh2o_10sec',
-    'population_2015_30sec',
-    'population_2015_5min',
     'sand_10sec',
     'silt_10sec',
     'soc_10sec',
