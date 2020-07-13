@@ -49,6 +49,8 @@ MASK_TYPES = [
 MASK_NODATA = 2
 MULT_BY_COLUMNS_NODATA = -1
 
+ZERO_NODATA_SYMBOLS = {'population_2015_5min', 'population_2015_30sec'}
+
 CARBON_ZONES_VECTOR_URI = 'gs://ecoshard-root/global_carbon_regression/carbon_zones_md5_aa16830f64d1ef66ebdf2552fb8a9c0d.gpkg'
 CARBON_ZONES_VECTOR_PATH = os.path.join(ECOSHARD_DIR, 'carbon_zones.gpkg')
 BASE_DATA_BUCKET_ROOT = 'gs://ecoshard-root/global_carbon_regression/inputs/'
@@ -517,7 +519,7 @@ def main():
             'lulc_esa_smoothed_2014_10sec', scenario_id,
             args.bounding_box, TARGET_PIXEL_SIZE,
             forest_regression_scenario_raster_map[scenario_id],
-            task_graph, zero_nodata=False,
+            task_graph, zero_nodata_symbols=ZERO_NODATA_SYMBOLS,
             target_nodata=MULT_BY_COLUMNS_NODATA,
             conversion_factor=conversion_factor)
 
@@ -567,7 +569,7 @@ def main():
             'lulc_esacci_2014_smoothed_class', scenario_id,
             args.bounding_box, TARGET_PIXEL_SIZE,
             non_forest_regression_scenario_raster_map[scenario_id],
-            task_graph, zero_nodata=False,
+            task_graph, zero_nodata_symbols=ZERO_NODATA_SYMBOLS,
             target_nodata=MULT_BY_COLUMNS_NODATA,
             conversion_factor=conversion_factor)
 

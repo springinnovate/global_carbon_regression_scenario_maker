@@ -45,8 +45,8 @@ def raster_rpn_calculator_op(*args_list):
             - N+3rd value is a dict mapping the symbol to a dict with
               "index" in it showing where index*2 location it is in the
               args_list.
-            - N+4th value is "zero nodata" if true then missing nodata are
-              treated as zeros unless the entire stack is nodata
+            - N+4th value is a set of symbols that if present should set their
+              nodata to 0.
             - N+5th value is "conversion factor" to multiply the final result
               by if it is not None.
 
@@ -58,29 +58,19 @@ def raster_rpn_calculator_op(*args_list):
     result[:] = args_list[n]  # target nodata
     rpn_stack = list(args_list[n+1])
     info_dict = args_list[n+2]
-    zero_nodata = args_list[n+3]
+    zero_nodata_indexes = args_list[n+3]
     conversion_factor = args_list[n+4]
+
     if conversion_factor is None:
         conversion_factor = 1
 
-    if zero_nodata:
-        valid_mask = numpy.zeros(args_list[0].shape, dtype=numpy.bool)
-    else:
-        valid_mask = numpy.ones(args_list[0].shape, dtype=numpy.bool)
+    valid_mask = numpy.ones(args_list[0].shape, dtype=numpy.bool)
     # build up valid mask where all pixel stacks are defined
     for index in range(0, n, 2):
         nodata_value = args_list[index+1]
-        if nodata_value is not None:
-            if zero_nodata:
-                local_valid_mask = ~numpy.isclose(
-                    args_list[index], args_list[index+1])
-                # set nodata to zero in antipation of having to use it
-                args_list[index][~local_valid_mask] = 0.0
-                valid_mask |= local_valid_mask
-                pass
-            else:
-                valid_mask &= \
-                    ~numpy.isclose(args_list[index], args_list[index+1])
+        if nodata_value is not None and index//2 not in zero_nodata_indexes:
+            valid_mask &= \
+                ~numpy.isclose(args_list[index], args_list[index+1])
 
     # process the rpn stack
     accumulator_stack = []
@@ -94,12 +84,12 @@ def raster_rpn_calculator_op(*args_list):
             accumulator_stack.append(val)
         else:
             if isinstance(val, str):
-                try:
-                    accumulator_stack.append(
-                        args_list[2*info_dict[val]['index']][valid_mask])
-                except KeyError:
-                    # this is to handle missing rasters
-                    accumulator_stack.append(0.0)
+                arg_index = info_dict[val]['index']
+                if arg_index in zero_nodata_indexes:
+                    nodata_mask = numpy.isclose(
+                        args_list[2*arg_index],  args_list[2*arg_index+1])
+                    args_list[2*arg_index][nodata_mask] = 0.0
+                accumulator_stack.append(args_list[2*arg_index][valid_mask])
             else:
                 accumulator_stack.append(val)
 
@@ -114,7 +104,7 @@ def mult_by_columns(
         lasso_table_path, data_dir, workspace_dir,
         base_convolution_raster_id, target_raster_id, bounding_box,
         pixel_size, target_result_path, task_graph,
-        zero_nodata=False, target_nodata=numpy.finfo('float32').min,
+        zero_nodata_symbols=None, target_nodata=numpy.finfo('float32').min,
         conversion_factor=None):
     """Calculate large regression.
 
@@ -137,9 +127,8 @@ def mult_by_columns(
         target_result_path (str): path to desired output raster
         task_graph (TaskGraph): TaskGraph object that can be used for
             scheduling.
-        zero_nodata (bool): if True, present, treat nodata values as 0, if
-            absent any nodata pixel in a stack will cause the output pixel to
-            be nodata
+        zero_nodata_symbols (set): set of symbols whose nodata values should be
+            treated as 0.
         target_nodata (float): desired target nodata value
         conversion_factor (float): if not None, this factor is multiplied by
             the final result befor going into target
@@ -291,10 +280,14 @@ def mult_by_columns(
                 f"indexes dont match: {index} {raster_id} "
                 f"{raster_id_to_info_map}")
 
+    zero_nodata_indexes = {
+        raster_id_to_info_map[raster_id]['index']
+        for raster_id in zero_nodata_symbols}
+
     raster_path_band_list.append((target_nodata, 'raw'))
     raster_path_band_list.append((rpn_stack, 'raw'))
     raster_path_band_list.append((raster_id_to_info_map, 'raw'))
-    raster_path_band_list.append((zero_nodata, 'raw'))
+    raster_path_band_list.append((zero_nodata_indexes, 'raw'))
     raster_path_band_list.append((conversion_factor, 'raw'))
     LOGGER.debug(rpn_stack)
 
