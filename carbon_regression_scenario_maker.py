@@ -51,19 +51,26 @@ MULT_BY_COLUMNS_NODATA = -1
 
 ZERO_NODATA_SYMBOLS = {
     'bdod_10sec',
+    'BDTICM_10sec',
+    'BLDFIE_10sec',
+    'CECSOL_10sec',
     'cfvo_10sec',
     'clay_10sec',
     'is_cropland_10sec',
+    'is_urban_10sec',
     'ndvcec015_10sec',
     'nitrogen_10sec',
+    'not_forest_10sec',
     'ocd_10sec',
+    'OCDENS_10sec',
     'ocs_10sec',
+    'OCSTHA_10sec',
     'phh2o_10sec',
+    'population_2015_30sec',
+    'population_2015_5min',
     'sand_10sec',
     'silt_10sec',
     'soc_10sec',
-    'population_2015_30sec',
-    'population_2015_5min',
     }
 
 CARBON_ZONES_VECTOR_URI = 'gs://ecoshard-root/global_carbon_regression/carbon_zones_md5_aa16830f64d1ef66ebdf2552fb8a9c0d.gpkg'
