@@ -88,8 +88,12 @@ def raster_rpn_calculator_op(*args_list):
             accumulator_stack.append(val)
         else:
             if isinstance(val, str):
-                accumulator_stack.append(
-                    args_list[2*info_dict[val]['index']][valid_mask])
+                try:
+                    accumulator_stack.append(
+                        args_list[2*info_dict[val]['index']][valid_mask])
+                except KeyError:
+                    # this is to handle missing rasters
+                    accumulator_stack.append(0.0)
             else:
                 accumulator_stack.append(val)
 
