@@ -74,9 +74,18 @@ BASE_LASSO_CONVOLUTION_RASTER_NAME = 'lulc_esa_smoothed_2014_10sec'
 LULC_SCENARIO_RASTER_PATH_MAP = {}
 
 
+def ipcc_carbon_op(lulc_array, zones_array, zone_lulc_to_carbon_map):
+    result = numpy.zeros(lulc_array.shape)
+    for zone_id in numpy.unique(zones_array):
+        zone_mask = lulc_array == zone_id
+        result[zone_mask] = \
+            zone_lulc_to_carbon_map[zone_id][lulc_array[zone_mask]]
+    return result
+
+
 def parse_carbon_lulc_table(ipcc_carbon_table_path):
     """Custom func to parse out the IPCC carbon table by zone and lulc."""
-    with open(ipcc_carbon_table_path, 'r') as carbon_table_file:
+    with open(IPCC_CARBON_TABLE_PATH, 'r') as carbon_table_file:
         header_line = carbon_table_file.readline()
         lulc_code_list = [int(lucode) for lucode in header_line.split(',')[1:]]
         max_code = max(lulc_code_list)
@@ -85,11 +94,12 @@ def parse_carbon_lulc_table(ipcc_carbon_table_path):
         zone_lucode_to_carbon_map = {}
         for line in carbon_table_file:
             split_line = line.split(',')
+            if split_line[0] == '':
+                continue
             zone_id = int(split_line[0])
             zone_lucode_to_carbon_map[zone_id] = numpy.zeros(max_code+1)
             for lucode, carbon_value in zip(lulc_code_list, split_line[1:]):
                 zone_lucode_to_carbon_map[zone_id][lucode] = float(carbon_value)
-            print(f'{zone_id}: {zone_lucode_to_carbon_map[zone_id]}')
     return zone_lucode_to_carbon_map
 
 
@@ -343,16 +353,12 @@ def main():
     #   for each landcover map,
     #       rasterize the carbon zones
     #       raster calculate the table + zones + landcover map to a carbon map
-    rasterized_zones_raster_path = None
+    rasterize_carbon_zone_task = None
     for _, lulc_raster_path in LULC_SCENARIO_RASTER_PATH_MAP.items():
-        carbon_zone_raster_path = os.path.join(
-            clipped_data_dir,
-            f'carbon_zones_{os.path.basename(lulc_raster_path)}')
-        [(carbon_zone_raster_path, 1), (lulc_raster_path, 1)]
-        if rasterized_zones_raster_path is None:
+        if rasterize_carbon_zone_task is None:
             rasterized_zones_raster_path = os.path.join(
                 clipped_data_dir, 'carbon_zones.tif')
-            task_graph.add_task(
+            rasterize_carbon_zone_task = task_graph.add_task(
                 func=rasterize_carbon_zones,
                 args=(
                     lulc_raster_path, CARBON_ZONES_VECTOR_PATH,
@@ -361,6 +367,19 @@ def main():
                 task_name='rasterize carbon zones')
             zone_lucode_to_carbon_map = parse_carbon_lulc_table(
                 IPCC_CARBON_TABLE_PATH)
+
+        ipcc_carbon_raster_path = os.path.join(
+            WORKSPACE_DIR,
+            f'ipcc_carbon_{bounding_box_str}_{os.path.basename(lulc_raster_path)}')
+        task_graph.add_task(
+            func=pygeoprocessing.raster_calculator,
+            args=(
+                [(lulc_raster_path, 1), (rasterized_zones_raster_path, 1),
+                 (zone_lucode_to_carbon_map, 'raw')], ipcc_carbon_op,
+                ipcc_carbon_raster_path, gdal.GDT_Float32, -1),
+            dependent_task_list=[rasterize_carbon_zone_task],
+            target_path_list=[ipcc_carbon_raster_path],
+            task_name=f'create carbon for {ipcc_carbon_raster_path}')
 
     # FOREST REGRESSION
 
