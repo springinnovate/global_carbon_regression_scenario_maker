@@ -126,9 +126,11 @@ def ipcc_carbon_op(
         lulc_array, zones_array, zone_lulc_to_carbon_map, conversion_factor):
     result = numpy.zeros(lulc_array.shape)
     for zone_id in numpy.unique(zones_array):
-        zone_mask = zones_array == zone_id
-        result[zone_mask] = \
-            zone_lulc_to_carbon_map[zone_id][lulc_array[zone_mask]] * conversion_factor
+        if zone_id in zone_lulc_to_carbon_map:
+            zone_mask = zones_array == zone_id
+            result[zone_mask] = (
+                zone_lulc_to_carbon_map[zone_id][lulc_array[zone_mask]] *
+                conversion_factor)
     return result
 
 

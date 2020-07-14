@@ -228,7 +228,6 @@ def main():
             target_table_file.write(
                 f'{sum_task.get()}, {os.path.basename(raster_mask_path)}\n')
 
-
     task_graph.join()
     task_graph.close()
     task_graph = None
