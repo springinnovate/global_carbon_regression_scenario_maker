@@ -70,6 +70,7 @@ def main():
         if args.sum:
             LOGGER.info(f'{raster_path}: {raster_sum}')
         if args.target_val is not None:
+            LOGGER.info(f'optimize to {args.target_val}')
             raster_id = os.path.basename(os.path.splitext(raster_path)[0])
             output_dir = os.path.join(args.target_dir, raster_id)
             try:
