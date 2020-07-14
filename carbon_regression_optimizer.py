@@ -38,7 +38,7 @@ NODATA = -1
 
 
 def sum_of_masked_op(mask_path, value_raster_path, churn_dir):
-    temp_dir = tempfile.mkdtmp(dir=churn_dir)
+    temp_dir = tempfile.mkdtemp(dir=churn_dir)
     mask_align_path = os.path.join(temp_dir, 'align_mask.tif')
     value_align_path = os.path.join(temp_dir, 'value_align.tif')
     target_pixel_size = pygeoprocessing.get_raster_info(
