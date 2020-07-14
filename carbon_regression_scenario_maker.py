@@ -528,10 +528,9 @@ def main():
             LULC_SCENARIO_RASTER_PATH_MAP.items():
         conversion_factor = (
             pygeoprocessing.get_raster_info(
-                lulc_scenario_raster_path)['pixel_size'][0]**2 * (
-                111120**2 *
-                (1/100000)**2) * 0.47 * # IPCC value to convert biomass to C
-                (15.9992*2+12.011)/12.011)  # C into CO2
+                lulc_scenario_raster_path)['pixel_size'][0]**2 *
+            111120**2 * (1/100000)**2 * 0.47 *  # IPCC value to convert BM to C
+            (15.9992*2+12.011)/12.011)  # C into CO2
         forest_regression_scenario_raster_map[scenario_id] = os.path.join(
             FOREST_REGRESSION_RESULT_DIR,
             f'forest_regression_{scenario_id}_{bounding_box_str}.tif')
