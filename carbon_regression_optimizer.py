@@ -69,7 +69,7 @@ def main():
         raster_sum = raster_sum_task.get()
         if args.sum:
             LOGGER.info(f'{raster_path}: {raster_sum}')
-        elif args.target_val is not None:
+        if args.target_val is not None:
             raster_id = os.path.basename(os.path.splitext(raster_path)[0])
             output_dir = os.path.join(args.target_dir, raster_id)
             try:
