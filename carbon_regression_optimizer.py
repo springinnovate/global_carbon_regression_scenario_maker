@@ -167,7 +167,7 @@ def main():
     pygeoprocessing.raster_optimization(
         [(efficiency_marginal_value_raster_path, 1)], churn_dir, optimize_dir,
         target_suffix=marginal_value_id,
-        goal_met_cutoffs=[float(x) for x in range(1, 101)]),
+        goal_met_cutoffs=[float(x) for x in range(1, 101)],
         heap_buffer_size=2**28, ffi_buffer_size=2**10)
 
     # TODO: evaluate the optimization rasters for total carbon
