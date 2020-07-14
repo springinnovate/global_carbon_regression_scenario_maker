@@ -39,7 +39,7 @@ def main():
     parser = argparse.ArgumentParser(
         description='Carbon regression scenario maker')
     parser.add_argument(
-        '--target_dir', nargs=1, help="path to output dir")
+        '--target_dir', help="path to output dir")
     parser.add_argument(
         'base_rasters', nargs='+',
         help=("glob to base rasters to optimize"))
@@ -59,6 +59,7 @@ def main():
         pass
 
     for raster_path in [glob.glob(path) for path in args.base_rasters]:
+        LOGGER.debug(raster_path)
         raster_sum_task = task_graph.add_task(
             func=calc_raster_sum,
             args=(raster_path,),
