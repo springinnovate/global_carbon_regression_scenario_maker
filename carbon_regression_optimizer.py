@@ -58,7 +58,9 @@ def main():
     except OSError:
         pass
 
-    for raster_path in [glob.glob(path) for path in args.base_rasters]:
+    for raster_path in [
+            raster_path for glob_pattern in args.base_rasters
+            for raster_path in glob.glob(glob_pattern)]:
         LOGGER.debug(raster_path)
         raster_sum_task = task_graph.add_task(
             func=calc_raster_sum,
