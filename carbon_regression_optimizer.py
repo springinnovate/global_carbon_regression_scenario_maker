@@ -47,7 +47,7 @@ def sum_of_masked_op(mask_path, value_raster_path, churn_dir):
     pygeoprocessing.align_and_resize_raster_stack(
         [mask_path, value_raster_path],
         [mask_align_path, value_align_path], ['near']*2,
-        target_pixel_size, 'intersect')
+        target_pixel_size, 'intersection')
 
     mask_raster = gdal.OpenEx(mask_align_path, gdal.OF_RASTER)
     value_raster = gdal.OpenEx(value_align_path, gdal.OF_RASTER)
