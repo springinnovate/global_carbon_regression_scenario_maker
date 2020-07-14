@@ -1,11 +1,28 @@
 """Used to optimize results from carbon regression."""
 import argparse
 import glob
+import logging
 import os
+import sys
 
+from osgeo import gdal
 import pygeoprocessing
 import numpy
 import taskgraph
+
+
+gdal.SetCacheMax(2**27)
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format=(
+        '%(asctime)s (%(relativeCreated)d) %(levelname)s %(name)s'
+        ' [%(funcName)s:%(lineno)d] %(message)s'),
+    stream=sys.stdout)
+
+LOGGER = logging.getLogger(__name__)
+logging.getLogger('taskgraph').setLevel(logging.INFO)
+
 
 def calc_raster_sum(raster_path):
     """Return the sum of the values in raster_path."""
@@ -15,6 +32,7 @@ def calc_raster_sum(raster_path):
         raster_sum += numpy.sum(
             raster_array[~numpy.isclose(raster_array, nodata)])
     return raster_sum
+
 
 def main():
     """Entry point."""
@@ -32,7 +50,7 @@ def main():
         help='if set use this as the goal met cutoff')
     args = parser.parse_args()
 
-    task_graph = taskgraph.TaskGraph(args.target_dir)
+    task_graph = taskgraph.TaskGraph(args.target_dir, -1)
 
     churn_dir = os.path.join(args.target_dir, 'churn')
     try:
@@ -47,7 +65,7 @@ def main():
             task_name=f'calc sum for {raster_path}')
         raster_sum = raster_sum_task.get()
         if args.sum:
-            print(f'{raster_path}: {raster_sum}')
+            LOGGER.info(f'{raster_path}: {raster_sum}')
         elif args.target_val is not None:
             raster_id = os.path.basename(os.path.splitext(raster_path)[0])
             output_dir = os.path.join(args.target_dir, raster_id)
