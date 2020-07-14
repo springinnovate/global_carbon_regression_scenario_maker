@@ -9,9 +9,12 @@ path_to_forest_mask_data
 
 """
 import argparse
+import glob
 import logging
 import os
+import shutil
 import sys
+import tempfile
 
 from osgeo import gdal
 import pygeoprocessing
@@ -32,6 +35,38 @@ LOGGER = logging.getLogger(__name__)
 logging.getLogger('taskgraph').setLevel(logging.INFO)
 
 NODATA = -1
+
+
+def sum_of_masked_op(mask_path, value_raster_path, churn_dir):
+    temp_dir = tempfile.mkdtmp(dir=churn_dir)
+    mask_align_path = os.path.join(temp_dir, 'align_mask.tif')
+    value_align_path = os.path.join(temp_dir, 'value_align.tif')
+    target_pixel_size = pygeoprocessing.get_raster_info(
+        value_raster_path)['pixel_size']
+
+    pygeoprocessing.align_and_resize_raster_stack(
+        [mask_path, value_raster_path],
+        [mask_align_path, value_align_path], ['near']*2,
+        target_pixel_size, 'intersect')
+
+    mask_raster = gdal.OpenEx(mask_align_path, gdal.OF_RASTER)
+    value_raster = gdal.OpenEx(value_align_path, gdal.OF_RASTER)
+    mask_band = mask_raster.GetRasterBand(1)
+    value_band = value_raster.GetRasterBand(1)
+
+    sum_val = 0.0
+    for offset_dict in pygeoprocessing.iterblocks(
+            (mask_raster, 1), offset_only=True):
+        mask_array = mask_band.ReadAsArray(**offset_dict)
+        value_array = value_band.ReadAsArray(**offset_dict)
+        sum_val += numpy.sum(value_array[mask_array == 1])
+
+    mask_band = None
+    value_band = None
+    mask_raster = None
+    value_raster = None
+    shutil.rmtree(temp_dir)
+    return sum_val
 
 
 def efficiency_op(average_marginal_value, average_forest_coverage):
@@ -95,7 +130,7 @@ def main():
     if args.sum:
         LOGGER.info(f'{args.marginal_value_raster}: {raster_sum}')
 
-    # TODO: sum marginal value to 30km pixel
+    # sum marginal value to 30km pixel
     pixel_size_30km = (30/111, -30/111)
     # warp marginal value map to this pixel size using average
     marginal_value_id = os.path.basename(
@@ -110,7 +145,7 @@ def main():
         target_path_list=[marginal_value_30km_average_raster_path],
         task_name='marginal value average to 30km')
 
-    # TODO: create count of difference of forest masks from esa to restoration
+    # create count of difference of forest masks from esa to restoration
     restoration_mask_raster_path = os.path.join(
         args.path_to_forest_mask_data,
         'mask_of_forest_10sec_restoration_limited.tif')
@@ -127,7 +162,7 @@ def main():
         target_path_list=[new_forest_mask_raster_path],
         task_name='new forest mask')
 
-    # TODO: sum count to 30km pixel
+    # sum count to 30km pixel
     # then warp this difference to 30km size using average
 
     new_forest_mask_30km_raster_path = os.path.join(
@@ -142,7 +177,7 @@ def main():
         dependent_task_list=[new_forest_mask_task],
         task_name='forest mask value average to 30km')
 
-    # TODO: divide marginal sum by (sum count +1)
+    # divide marginal sum by average count
     # then divide 30km marginal average by 30km difference average
     efficiency_marginal_value_raster_path = os.path.join(
         churn_dir, f'{marginal_value_id}_efficiency.tif')
@@ -162,7 +197,7 @@ def main():
     task_graph.close()
     task_graph = None
 
-    # TODO: optimize
+    # optimize
     optimize_dir = os.path.join(args.target_dir, 'optimize_rasters')
     pygeoprocessing.raster_optimization(
         [(efficiency_marginal_value_raster_path, 1)], churn_dir, optimize_dir,
@@ -171,6 +206,22 @@ def main():
         heap_buffer_size=2**28, ffi_buffer_size=2**10)
 
     # TODO: evaluate the optimization rasters for total carbon
+    sum_task_list = []
+    for optimization_raster_mask in glob.glob(
+            os.path.join(optimize_dir, 'working_mask*.tif')):
+        sum_of_masked_task = task_graph.add_task(
+            func=sum_of_masked_op,
+            args=(
+                optimization_raster_mask, args.marginal_value_raster,
+                churn_dir),
+            task_name=f'sum of {optimization_raster_mask}')
+        sum_task_list.append((optimization_raster_mask, sum_of_masked_task))
+    target_table_path = os.path.join(
+        args.target_dir, f'total_carbon_{marginal_value_id}.csv')
+    with open(target_table_path, 'w') as target_table_file:
+        for raster_mask_path, sum_task in sum_task_list:
+            target_table_file.write(
+                f'{sum_task.get()}, {os.path.basename(raster_mask_path)}\n')
 
 
 if __name__ == '__main__':
