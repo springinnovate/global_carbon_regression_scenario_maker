@@ -56,7 +56,7 @@ def sum_of_masked_op(mask_path, value_raster_path, churn_dir):
 
     sum_val = 0.0
     for offset_dict in pygeoprocessing.iterblocks(
-            (mask_raster, 1), offset_only=True):
+            (mask_align_path, 1), offset_only=True):
         mask_array = mask_band.ReadAsArray(**offset_dict)
         value_array = value_band.ReadAsArray(**offset_dict)
         sum_val += numpy.sum(value_array[mask_array == 1])
