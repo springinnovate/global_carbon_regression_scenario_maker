@@ -26,7 +26,7 @@ def main():
         'base_rasters', nargs='+',
         help=("glob to base rasters to optimize"))
     parser.add_argument(
-        '--sum', help='if set, report sum of raster')
+        '--sum', action='store_true', help='if set, report sum of raster')
     parser.add_argument(
         '--target_val', type=float, default=None,
         help='if set use this as the goal met cutoff')
