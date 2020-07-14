@@ -1,6 +1,6 @@
 """Used to optimize results from carbon regression.
 
-Run like this: git pull && docker run --name optimize -v `pwd`:/usr/local/workspace -it --rm therealspring/inspring:latest carbon_regression_optimizer.py --target_dir optimize_regression_results --path_to_forest_mask_data carbon_regression_scenario_workspace/data/-61.0,0.0,-60.0,1.0/ --sum
+Run like this: git pull && docker run --name optimize -v `pwd`:/usr/local/workspace -it --rm therealspring/inspring:latest carbon_regression_optimizer.py --target_dir optimize_regression_results --path_to_forest_mask_data carbon_regression_scenario_workspace/data/-61.0,0.0,-60.0,1.0/ --marginal_value_raster carbon_regression_scenario_workspace/marginal_values/marginal_value_regression_-61.0,0.0,-60.0,1.0.tif --sum
 
 target_dir
 forest_masks
@@ -122,8 +122,8 @@ def main():
         func=pygeoprocessing.raster_calculator,
         args=(
             [(restoration_mask_raster_path, 1), (esa_mask_raster_path, 1)],
-            new_forest_mask_op, new_forest_mask_raster_path, gdal.GDT_Byte,
-            None),
+            new_forest_mask_op, new_forest_mask_raster_path, gdal.GDT_Float32,
+            NODATA),
         target_path_list=[new_forest_mask_raster_path],
         task_name='new forest mask')
 
@@ -167,7 +167,7 @@ def main():
     pygeoprocessing.raster_optimization(
         [(efficiency_marginal_value_raster_path, 1)], churn_dir, optimize_dir,
         target_suffix=marginal_value_id,
-        goal_met_cutoffs=list(range(1, 101)),
+        goal_met_cutoffs=[float(x) for x in range(1, 101)]),
         heap_buffer_size=2**28, ffi_buffer_size=2**10)
 
     # TODO: evaluate the optimization rasters for total carbon
