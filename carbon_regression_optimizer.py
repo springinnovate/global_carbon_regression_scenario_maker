@@ -212,8 +212,8 @@ def main():
     # TODO: evaluate the optimization rasters for total carbon
     sum_task_list = []
     task_graph.join()
-    for optimization_raster_mask in glob.glob(
-            os.path.join(optimize_dir, 'working_mask*.tif')):
+    for optimization_raster_mask in sorted(glob.glob(
+            os.path.join(optimize_dir, 'working_mask*.tif'))):
         sum_of_masked_task = task_graph.add_task(
             func=sum_of_masked_op,
             args=(
