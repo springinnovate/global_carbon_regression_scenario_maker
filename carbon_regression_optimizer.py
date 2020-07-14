@@ -193,17 +193,21 @@ def main():
         target_path_list=[efficiency_marginal_value_raster_path],
         task_name='calc efficiency_op')
 
-    task_graph.join()
-    task_graph.close()
-    task_graph = None
-
     # optimize
     optimize_dir = os.path.join(args.target_dir, 'optimize_rasters')
-    pygeoprocessing.raster_optimization(
-        [(efficiency_marginal_value_raster_path, 1)], churn_dir, optimize_dir,
-        target_suffix=marginal_value_id,
-        goal_met_cutoffs=[float(x)/100.0 for x in range(1, 101)],
-        heap_buffer_size=2**28, ffi_buffer_size=2**10)
+    task_graph.join()
+    task_graph.add_task(
+        func=pygeoprocessing.raster_optimization,
+        args=(
+            [(efficiency_marginal_value_raster_path, 1)], churn_dir,
+            optimize_dir),
+        kwargs={
+            'target_suffix': marginal_value_id,
+            'goal_met_cutoffs': [float(x)/100.0 for x in range(1, 101)],
+            'heap_buffer_size': 2**28,
+            'ffi_buffer_size': 2**10,
+            },
+        task_name='optimize')
 
     # TODO: evaluate the optimization rasters for total carbon
     sum_task_list = []
@@ -222,6 +226,12 @@ def main():
         for raster_mask_path, sum_task in sum_task_list:
             target_table_file.write(
                 f'{sum_task.get()}, {os.path.basename(raster_mask_path)}\n')
+
+
+    task_graph.join()
+    task_graph.close()
+    task_graph = None
+
 
 
 if __name__ == '__main__':
