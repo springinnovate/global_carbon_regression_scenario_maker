@@ -102,7 +102,7 @@ def sub_pos_op(array_a, array_b):
     result = array_a.copy()
     mask = array_b > 0
     result[mask] -= array_b[mask]
-    return array_b
+    return result
 
 
 def where_op(condition_array, if_true_array, else_array):
