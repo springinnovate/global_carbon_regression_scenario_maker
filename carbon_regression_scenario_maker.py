@@ -1,16 +1,13 @@
 """Create carbon regression scenarios."""
 import argparse
 import collections
-import glob
 import logging
 import multiprocessing
 import os
-import re
 import subprocess
 import sys
 
 from osgeo import gdal
-import ecoshard
 import pygeoprocessing
 import numpy
 import scipy.ndimage
@@ -83,14 +80,15 @@ LULC_SCENARIO_URI_MAP = {
 }
 TARGET_PIXEL_SIZE = (10./3600., -10./3600.)
 FOREST_REGRESSION_LASSO_TABLE_URI = 'gs://ecoshard-root/global_carbon_regression/lasso_interacted_not_forest_gs1to100_nonlinear_alpha0-0001_params_namefix.csv'
-NON_FOREST_REGRESSION_LASSO_TABLES_URL = 'https://storage.googleapis.com/ecoshard-root/global_carbon_regression/inputs/results_2020-07-07b_md5_fe89d44cf181486b384beb432c253d47.zip'
-NON_FOREST_REGRESSION_LASSO_TABLES_DIR = os.path.join(
-    ECOSHARD_DIR, 'non_forest_regression_tables')
 IPCC_CARBON_TABLE_URI = 'gs://ecoshard-root/global_carbon_regression/IPCC_carbon_table_md5_a91f7ade46871575861005764d85cfa7.csv'
 IPCC_CARBON_TABLE_PATH = os.path.join(
     ECOSHARD_DIR, os.path.basename(IPCC_CARBON_TABLE_URI))
 FOREST_REGRESSION_LASSO_TABLE_PATH = os.path.join(
     ECOSHARD_DIR, os.path.basename(FOREST_REGRESSION_LASSO_TABLE_URI))
+BACCINI_10s_2014_BIOMASS_URI = (
+    'gs://ecoshard-root/global_carbon_regression/baccini_10s_2014'
+    '_md5_5956a9d06d4dffc89517cefb0f6bb008.tif')
+
 # The following is the base in the pattern found in the lasso table
 # [base]_[mask_type]_gs[kernel_size]
 BASE_LASSO_CONVOLUTION_RASTER_NAME = 'lulc_esa_smoothed_2014_10sec'
@@ -106,6 +104,7 @@ def sub_pos_op(array_a, array_b):
 
 
 def where_op(condition_array, if_true_array, else_array):
+    """Select from `if true array` if condition true, `else array`."""
     result = numpy.copy(else_array)
     mask = condition_array == 1
     result[mask] = if_true_array[mask]
@@ -115,6 +114,7 @@ def where_op(condition_array, if_true_array, else_array):
 def raster_where(
         condition_raster_path, if_true_raster_path, else_raster_path,
         target_raster_path):
+    """A raster version of the numpy.where function."""
     pygeoprocessing.raster_calculator(
         [(condition_raster_path, 1), (if_true_raster_path, 1),
          (else_raster_path, 1)], where_op, target_raster_path,
@@ -124,6 +124,7 @@ def raster_where(
 
 def ipcc_carbon_op(
         lulc_array, zones_array, zone_lulc_to_carbon_map, conversion_factor):
+    """Map carbon to LULC/zone values and multiply by conversion map."""
     result = numpy.zeros(lulc_array.shape)
     for zone_id in numpy.unique(zones_array):
         if zone_id in zone_lulc_to_carbon_map:
@@ -149,7 +150,8 @@ def parse_carbon_lulc_table(ipcc_carbon_table_path):
             zone_id = int(split_line[0])
             zone_lucode_to_carbon_map[zone_id] = numpy.zeros(max_code+1)
             for lucode, carbon_value in zip(lulc_code_list, split_line[1:]):
-                zone_lucode_to_carbon_map[zone_id][lucode] = float(carbon_value)
+                zone_lucode_to_carbon_map[zone_id][lucode] = float(
+                    carbon_value)
     return zone_lucode_to_carbon_map
 
 
@@ -179,6 +181,7 @@ def make_kernel_raster(pixel_radius, target_path):
 
 
 def _mask_vals_op(array, nodata, valid_1d_array, inverse, target_nodata):
+    """Set values 1d array/array to nodata unless `inverse` then opposite."""
     result = numpy.zeros(array.shape, dtype=numpy.uint8)
     if nodata is not None:
         nodata_mask = numpy.isclose(array, nodata)
@@ -192,13 +195,22 @@ def _mask_vals_op(array, nodata, valid_1d_array, inverse, target_nodata):
     return result
 
 
-def mult_op(array_a, array_b, nodata_a, nodata_b, target_nodata):
+def mult_rasters_op(array_a, array_b, nodata_a, nodata_b, target_nodata):
     """Mult a*b and account for nodata."""
     result = numpy.empty(array_a.shape)
     result[:] = target_nodata
     valid_mask = (
         ~numpy.isclose(array_a, nodata_a) & ~numpy.isclose(array_b, nodata_b))
     result[valid_mask] = array_a[valid_mask] * array_b[valid_mask]
+    return result
+
+
+def mult_by_const_op(array, const, nodata):
+    """Mult array by const."""
+    result = numpy.empty_like(array)
+    result[:] = nodata
+    valid_mask = ~numpy.isclose(array, nodata)
+    result[valid_mask] = array[valid_mask] * const
     return result
 
 
@@ -292,7 +304,8 @@ def fetch_data(bounding_box, clipped_data_dir, task_graph):
     files_to_download = subprocess.check_output([
         '/usr/local/gcloud-sdk/google-cloud-sdk/bin/gsutil ls '
         'gs://ecoshard-root/global_carbon_regression/inputs'],
-        shell=True).decode('utf-8').splitlines()
+        shell=True).decode('utf-8').splitlines() + [
+            BACCINI_10s_2014_BIOMASS_URI]
 
     LOGGER.debug(f'here are the files to download: {files_to_download}')
 
@@ -315,6 +328,9 @@ def fetch_data(bounding_box, clipped_data_dir, task_graph):
                 f'download and clip contents of {file_uri} to '
                 f'{clipped_data_dir}'))
     task_graph.join()
+    global BACCINI_10s_2014_BIOMASS_RASTER_PATH
+    BACCINI_10s_2014_BIOMASS_RASTER_PATH = os.path.join(
+        clipped_data_dir, os.path.basename(BACCINI_10s_2014_BIOMASS_URI))
 
     for data_uri, data_path in [
             (CARBON_ZONES_VECTOR_URI, CARBON_ZONES_VECTOR_PATH),
@@ -329,18 +345,6 @@ def fetch_data(bounding_box, clipped_data_dir, task_graph):
             kwargs={'shell': True, 'check': True},
             target_path_list=[data_path],
             task_name=f'download {data_uri}')
-
-    try:
-        os.makedirs(NON_FOREST_REGRESSION_LASSO_TABLES_DIR)
-    except OSError:
-        pass
-
-    _ = task_graph.add_task(
-        func=ecoshard.download_and_unzip,
-        args=(
-            NON_FOREST_REGRESSION_LASSO_TABLES_URL,
-            NON_FOREST_REGRESSION_LASSO_TABLES_DIR),
-        task_name='download non forest regresstion lasso table')
 
     global LULC_SCENARIO_RASTER_PATH_MAP
     for scenario_id, lulc_uri in LULC_SCENARIO_URI_MAP.items():
@@ -432,7 +436,7 @@ def main():
             pygeoprocessing.get_raster_info(
                 lulc_raster_path)['pixel_size'][0]**2 *
             111120**2 *
-            (1/100000)**2) * (15.9992*2+12.011)/12.011
+            (1/100000) * (15.9992*2+12.011)/12.011)
 
         task_graph.add_task(
             func=pygeoprocessing.raster_calculator,
@@ -531,7 +535,7 @@ def main():
         conversion_factor = (
             pygeoprocessing.get_raster_info(
                 lulc_scenario_raster_path)['pixel_size'][0]**2 *
-            111120**2 * (1/100000)**2 * 0.47 *  # IPCC value to convert BM to C
+            111120**2 * (1/100000) * 0.47 *  # IPCC value to convert BM to C
             (15.9992*2+12.011)/12.011)  # C into CO2
         forest_regression_scenario_raster_map[scenario_id] = os.path.join(
             FOREST_REGRESSION_RESULT_DIR,
@@ -547,55 +551,33 @@ def main():
             target_nodata=MULT_BY_COLUMNS_NODATA,
             conversion_factor=conversion_factor)
 
-    # NON-FOREST REGRESSION
-    NON_FOREST_REGRESSION_RESULT_DIR = os.path.join(
-        WORKSPACE_DIR, 'non_forest_regression_rasters')
+    # NON-FOREST BIOMASS
+    BACCINI_CO2_RESULT_DIR = os.path.join(
+        WORKSPACE_DIR, 'baccini_co2_rasters')
     try:
-        os.makedirs(NON_FOREST_REGRESSION_RESULT_DIR)
+        os.makedirs(BACCINI_CO2_RESULT_DIR)
     except OSError:
         pass
 
-    LOGGER.info('evalute non-forest regression')
-    non_forest_regression_scenario_raster_map = {}
-    for scenario_id, lulc_raster_path in LULC_SCENARIO_RASTER_PATH_MAP.items():
-        conversion_factor = (
-            pygeoprocessing.get_raster_info(
-                lulc_raster_path)['pixel_size'][0]**2 *
-            111120**2 *
-            (1/100000)**2)
-        for class_id in range(10, 221, 10):
-            collapsed_class_raster_path = os.path.join(
-                clipped_data_dir,
-                f'{scenario_id}_{class_id}.tif')
-            mask_task = task_graph.add_task(
-                func=mask_ranges,
-                args=(
-                    lulc_raster_path,
-                    list(range(class_id, class_id+11)), '',
-                    collapsed_class_raster_path),
-                target_path_list=[collapsed_class_raster_path],
-                task_name=f'eval for collapsed_class_raster_path')
-
-        alpha = 'alpha0-0001'
-        lasso_table_path = os.path.join(
-            NON_FOREST_REGRESSION_LASSO_TABLES_DIR,
-            f'lasso_not_forest_interacted_dummies_equation_string_{alpha}_'
-            f'params.csv')
-
-        non_forest_regression_scenario_raster_map[scenario_id] = os.path.join(
-            NON_FOREST_REGRESSION_RESULT_DIR,
-            f'non_forest_regression_{scenario_id}_{alpha}_'
-            f'{bounding_box_str}.tif')
-
-        mult_by_columns_library.mult_by_columns(
-            lasso_table_path, clipped_data_dir,
-            mult_by_columns_workspace,
-            'lulc_esacci_2014_smoothed_class', scenario_id,
-            args.bounding_box, TARGET_PIXEL_SIZE,
-            non_forest_regression_scenario_raster_map[scenario_id],
-            task_graph, zero_nodata_symbols=ZERO_NODATA_SYMBOLS,
-            target_nodata=MULT_BY_COLUMNS_NODATA,
-            conversion_factor=conversion_factor)
+    LOGGER.info('convert baccini non forest into CO2')
+    conversion_factor = (
+        pygeoprocessing.get_raster_info(
+            lulc_raster_path)['pixel_size'][0]**2 *
+        111120**2 * (1/100000) * 0.47 * (15.9992*2+12.011)/12.011)
+    # TODO: mult baccini by this conversion factor
+    baccini_nodata = pygeoprocessing.get_raster_info(
+        BACCINI_10s_2014_BIOMASS_RASTER_PATH)['nodata'][0]
+    baccini_co2_raster_path = os.path.join(
+        BACCINI_CO2_RESULT_DIR, f'baccini_co2_{bounding_box_str}.tif')
+    task_graph.add_task(
+        func=pygeoprocessing.raster_calculator,
+        args=(
+            [(BACCINI_10s_2014_BIOMASS_RASTER_PATH, 1),
+             (baccini_nodata, 'raw'), (conversion_factor, 'raw')],
+            mult_by_const_op, baccini_co2_raster_path, gdal.GDT_Float32,
+            baccini_nodata),
+        target_path_list=[baccini_co2_raster_path],
+        task_name='convert baccini biomass density to co2')
 
     task_graph.join()
 
@@ -616,7 +598,7 @@ def main():
             args=(
                 mask_path_task_map[scenario_id]['forest_10sec'][0],
                 forest_regression_scenario_raster_map[scenario_id],
-                non_forest_regression_scenario_raster_map[scenario_id],
+                baccini_co2_raster_path,
                 regression_carbon_scenario_path_map[scenario_id]),
             target_path_list=[
                 regression_carbon_scenario_path_map[scenario_id]],
@@ -649,7 +631,7 @@ def main():
                  (mask_path_task_map['restoration_limited']['forest_10sec'][0],
                   1), (MULT_BY_COLUMNS_NODATA, 'raw'), (MASK_NODATA, 'raw'),
                  (MULT_BY_COLUMNS_NODATA, 'raw')],
-                mult_op, masked_ipcc_carbon_raster_map[scenario_id],
+                mult_rasters_op, masked_ipcc_carbon_raster_map[scenario_id],
                 gdal.GDT_Float32, MULT_BY_COLUMNS_NODATA),
             target_path_list=[masked_ipcc_carbon_raster_map[scenario_id]],
             task_name=f'mask out forest only ipcc {scenario_id}')
@@ -714,14 +696,17 @@ def main():
                  (mask_path_task_map['restoration_limited']['forest_10sec'][0],
                   1), (MULT_BY_COLUMNS_NODATA, 'raw'), (MASK_NODATA, 'raw'),
                  (MULT_BY_COLUMNS_NODATA, 'raw')],
-                mult_op, masked_regression_carbon_raster_map[scenario_id],
+                mult_rasters_op,
+                masked_regression_carbon_raster_map[scenario_id],
                 gdal.GDT_Float32, MULT_BY_COLUMNS_NODATA),
-            target_path_list=[masked_regression_carbon_raster_map[scenario_id]],
+            target_path_list=[
+                masked_regression_carbon_raster_map[scenario_id]],
             task_name=f'mask out forest only regression {scenario_id}')
         regression_mask_task_list.append(mask_task)
 
     regression_carbon_marginal_value_raster = os.path.join(
-        marginal_value_dir, f'marginal_value_regression_{bounding_box_str}.tif')
+        marginal_value_dir,
+        f'marginal_value_regression_{bounding_box_str}.tif')
     task_graph.add_task(
         func=pygeoprocessing.raster_calculator,
         args=([
