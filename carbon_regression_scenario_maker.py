@@ -436,7 +436,7 @@ def main():
             pygeoprocessing.get_raster_info(
                 lulc_raster_path)['pixel_size'][0]**2 *
             111120**2 *
-            (1/100000) * (15.9992*2+12.011)/12.011)
+            (1/10000) * (15.9992*2+12.011)/12.011)
 
         task_graph.add_task(
             func=pygeoprocessing.raster_calculator,
@@ -535,7 +535,7 @@ def main():
         conversion_factor = (
             pygeoprocessing.get_raster_info(
                 lulc_scenario_raster_path)['pixel_size'][0]**2 *
-            111120**2 * (1/100000) * 0.47 *  # IPCC value to convert BM to C
+            111120**2 * (1/10000) * 0.47 *  # IPCC value to convert BM to C
             (15.9992*2+12.011)/12.011)  # C into CO2
         forest_regression_scenario_raster_map[scenario_id] = os.path.join(
             FOREST_REGRESSION_RESULT_DIR,
@@ -563,7 +563,7 @@ def main():
     conversion_factor = (
         pygeoprocessing.get_raster_info(
             lulc_raster_path)['pixel_size'][0]**2 *
-        111120**2 * (1/100000) * 0.47 * (15.9992*2+12.011)/12.011)
+        111120**2 * (1/10000) * 0.47 * (15.9992*2+12.011)/12.011)
     # TODO: mult baccini by this conversion factor
     baccini_nodata = pygeoprocessing.get_raster_info(
         BACCINI_10s_2014_BIOMASS_RASTER_PATH)['nodata'][0]
