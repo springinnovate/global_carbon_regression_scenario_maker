@@ -573,7 +573,7 @@ def main():
         func=pygeoprocessing.raster_calculator,
         args=(
             [(BACCINI_10s_2014_BIOMASS_RASTER_PATH, 1),
-             (baccini_nodata, 'raw'), (conversion_factor, 'raw'),
+             (conversion_factor, 'raw'), (baccini_nodata, 'raw'),
              (MULT_BY_COLUMNS_NODATA, 'raw')],
             mult_by_const_op, baccini_co2_raster_path, gdal.GDT_Float32,
             MULT_BY_COLUMNS_NODATA),
