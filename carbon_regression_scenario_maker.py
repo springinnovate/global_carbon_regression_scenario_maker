@@ -210,7 +210,7 @@ def mult_by_const_op(array, const, nodata, target_nodata):
     result = numpy.empty(array.shape, dtype=numpy.float32)
     result[:] = target_nodata
     valid_mask = ~numpy.isclose(array, nodata)
-    result[valid_mask] = array[valid_mask] * const
+    result[valid_mask] = array[valid_mask].astype(numpy.float32) * const
     return result
 
 
