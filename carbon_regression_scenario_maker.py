@@ -205,10 +205,10 @@ def mult_rasters_op(array_a, array_b, nodata_a, nodata_b, target_nodata):
     return result
 
 
-def mult_by_const_op(array, const, nodata):
+def mult_by_const_op(array, const, nodata, target_nodata):
     """Mult array by const."""
-    result = numpy.empty_like(array)
-    result[:] = nodata
+    result = numpy.empty(array.shape, dtype=numpy.float32)
+    result[:] = target_nodata
     valid_mask = ~numpy.isclose(array, nodata)
     result[valid_mask] = array[valid_mask] * const
     return result
@@ -573,9 +573,10 @@ def main():
         func=pygeoprocessing.raster_calculator,
         args=(
             [(BACCINI_10s_2014_BIOMASS_RASTER_PATH, 1),
-             (baccini_nodata, 'raw'), (conversion_factor, 'raw')],
+             (baccini_nodata, 'raw'), (conversion_factor, 'raw'),
+             (MASK_NODATA, 'raw')],
             mult_by_const_op, baccini_co2_raster_path, gdal.GDT_Float32,
-            baccini_nodata),
+            MASK_NODATA),
         target_path_list=[baccini_co2_raster_path],
         task_name='convert baccini biomass density to co2')
 
