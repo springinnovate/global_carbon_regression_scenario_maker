@@ -574,9 +574,9 @@ def main():
         args=(
             [(BACCINI_10s_2014_BIOMASS_RASTER_PATH, 1),
              (baccini_nodata, 'raw'), (conversion_factor, 'raw'),
-             (MASK_NODATA, 'raw')],
+             (MULT_BY_COLUMNS_NODATA, 'raw')],
             mult_by_const_op, baccini_co2_raster_path, gdal.GDT_Float32,
-            MASK_NODATA),
+            MULT_BY_COLUMNS_NODATA),
         target_path_list=[baccini_co2_raster_path],
         task_name='convert baccini biomass density to co2')
 
