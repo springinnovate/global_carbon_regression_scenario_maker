@@ -71,7 +71,15 @@ def sum_of_masked_op(mask_path, value_raster_path, churn_dir):
 
 def efficiency_op(average_marginal_value, average_forest_coverage):
     result = numpy.zeros(average_marginal_value.shape)
+    invalid_mask = (
+        numpy.isnan(average_forest_coverage) |
+        numpy.isnan(average_marginal_value) |
+        numpy.isinf(average_forest_coverage) |
+        numpy.isinf(average_marginal_value))
+    average_marginal_value[invalid_mask] = -1
+    average_forest_coverage[invalid_mask] = -1
     valid_mask = (average_marginal_value > 0) & (average_forest_coverage > 0)
+
     result[valid_mask] = (
         average_marginal_value[valid_mask] /
         average_forest_coverage[valid_mask])
