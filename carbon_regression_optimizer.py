@@ -11,6 +11,7 @@ path_to_forest_mask_data
 import argparse
 import glob
 import logging
+import multiprocessing
 import os
 import shutil
 import sys
@@ -120,22 +121,24 @@ def main():
     parser.add_argument(
         '--target_val', type=float, default=None,
         help='if set use this as the goal met cutoff')
+    parser.add_argument(
+        '--n_workers', type=int, default=multiprocessing.cpu_count(),
+        help='number of workers to taskgraph')
     args = parser.parse_args()
 
-    task_graph = taskgraph.TaskGraph(args.target_dir, -1)
-
+    task_graph = taskgraph.TaskGraph(args.target_dir, args.n_workers, 5.0)
     churn_dir = os.path.join(args.target_dir, 'churn')
     try:
         os.makedirs(churn_dir)
     except OSError:
         pass
 
-    raster_sum_task = task_graph.add_task(
-            func=calc_raster_sum,
-            args=(args.marginal_value_raster,),
-            task_name=f'calc sum for {args.marginal_value_raster}')
-    raster_sum = raster_sum_task.get()
     if args.sum:
+        raster_sum_task = task_graph.add_task(
+                func=calc_raster_sum,
+                args=(args.marginal_value_raster,),
+                task_name=f'calc sum for {args.marginal_value_raster}')
+        raster_sum = raster_sum_task.get()
         LOGGER.info(f'{args.marginal_value_raster}: {raster_sum}')
 
     # sum marginal value to 30km pixel
@@ -145,6 +148,7 @@ def main():
         os.path.splitext(args.marginal_value_raster)[0])
     marginal_value_30km_average_raster_path = os.path.join(
         churn_dir, f'{marginal_value_id}_30km_average.tif')
+    LOGGER.info('warp marginal value to 30km size')
     marginal_value_30km_task = task_graph.add_task(
         func=pygeoprocessing.warp_raster,
         args=(
@@ -161,6 +165,7 @@ def main():
         args.path_to_forest_mask_data, 'mask_of_forest_10sec_esa2014.tif')
     new_forest_mask_raster_path = os.path.join(
         churn_dir, f'{marginal_value_id}_new_forest_mask.tif')
+    LOGGER.info('count difference of forest mask from esa to restoration')
     new_forest_mask_task = task_graph.add_task(
         func=pygeoprocessing.raster_calculator,
         args=(
@@ -176,6 +181,7 @@ def main():
     new_forest_mask_30km_raster_path = os.path.join(
         churn_dir, f'{marginal_value_id}_new_forest_mask_30km.tif')
 
+    LOGGER.debug('warp new forest mask to 30km')
     new_forest_30km_task = task_graph.add_task(
         func=pygeoprocessing.warp_raster,
         args=(
@@ -190,7 +196,9 @@ def main():
     efficiency_marginal_value_raster_path = os.path.join(
         churn_dir, f'{marginal_value_id}_efficiency.tif')
 
-    _ = task_graph.add_task(
+    LOGGER.debug(
+        'divide marginal value by new forest average to get efficiency')
+    efficiency_task = task_graph.add_task(
         func=pygeoprocessing.raster_calculator,
         args=(
             [(marginal_value_30km_average_raster_path, 1),
@@ -202,6 +210,7 @@ def main():
         task_name='calc efficiency_op')
 
     # optimize
+    LOGGER.debug('run that optimization on efficiency')
     optimize_dir = os.path.join(args.target_dir, 'optimize_rasters')
     task_graph.join()
     task_graph.add_task(
@@ -215,6 +224,7 @@ def main():
             'heap_buffer_size': 2**28,
             'ffi_buffer_size': 2**10,
             },
+        dependent_task_list=[efficiency_task],
         task_name='optimize')
 
     # TODO: evaluate the optimization rasters for total carbon
@@ -231,8 +241,10 @@ def main():
         sum_task_list.append((optimization_raster_mask, sum_of_masked_task))
     target_table_path = os.path.join(
         args.target_dir, f'total_carbon_{marginal_value_id}.csv')
+    LOGGER.debug('writing result')
     with open(target_table_path, 'w') as target_table_file:
         for raster_mask_path, sum_task in sum_task_list:
+            LOGGER.debug(f'waiting for result of {raster_mask_path}')
             target_table_file.write(
                 f'{sum_task.get()}, {os.path.basename(raster_mask_path)}\n')
 
