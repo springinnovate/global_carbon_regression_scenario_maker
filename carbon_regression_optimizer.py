@@ -231,11 +231,6 @@ def main():
         dependent_task_list=[efficiency_task],
         task_name='optimize')
 
-    task_graph.close()
-    task_graph.join()
-    sys.exit(-1)
-
-    # TODO: evaluate the optimization rasters for total carbon
     sum_task_list = []
     task_graph.join()
     for optimization_raster_mask in sorted(glob.glob(
@@ -259,7 +254,6 @@ def main():
     task_graph.join()
     task_graph.close()
     task_graph = None
-
 
 
 if __name__ == '__main__':
