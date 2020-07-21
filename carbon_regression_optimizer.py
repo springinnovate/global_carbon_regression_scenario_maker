@@ -82,7 +82,7 @@ def efficiency_op(average_marginal_value, average_forest_coverage):
     valid_mask = (
         (average_marginal_value > 0) &
         (average_forest_coverage > 0) &
-        (average_marginal_value < 1e6))
+        (average_marginal_value < .5e4))
 
     result[valid_mask] = (
         average_marginal_value[valid_mask] /
