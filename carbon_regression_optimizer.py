@@ -209,6 +209,10 @@ def main():
         target_path_list=[efficiency_marginal_value_raster_path],
         task_name='calc efficiency_op')
 
+    task_graph.join()
+    task_graph.close()
+    sys.exit(-1)
+
     # optimize
     LOGGER.debug('run that optimization on efficiency')
     optimize_dir = os.path.join(args.target_dir, 'optimize_rasters')
