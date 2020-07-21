@@ -81,7 +81,8 @@ def efficiency_op(average_marginal_value, average_forest_coverage):
     average_forest_coverage[invalid_mask] = NODATA
     valid_mask = (
         (average_marginal_value > 0) &
-        (average_forest_coverage > 0))
+        (average_forest_coverage > 0) &
+        (average_marginal_value < 1e6))
 
     result[valid_mask] = (
         average_marginal_value[valid_mask] /
