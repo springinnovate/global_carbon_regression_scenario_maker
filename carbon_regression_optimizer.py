@@ -79,7 +79,10 @@ def efficiency_op(average_marginal_value, average_forest_coverage):
         numpy.isinf(average_marginal_value))
     average_marginal_value[invalid_mask] = NODATA
     average_forest_coverage[invalid_mask] = NODATA
-    valid_mask = (average_marginal_value > 0) & (average_forest_coverage > 0)
+    valid_mask = (
+        (average_marginal_value > 0) &
+        (average_forest_coverage > 0) &
+        (average_marginal_value < 1e6))
 
     result[valid_mask] = (
         average_marginal_value[valid_mask] /
@@ -209,10 +212,6 @@ def main():
         target_path_list=[efficiency_marginal_value_raster_path],
         task_name='calc efficiency_op')
 
-    task_graph.join()
-    task_graph.close()
-    sys.exit(-1)
-
     # optimize
     LOGGER.debug('run that optimization on efficiency')
     optimize_dir = os.path.join(args.target_dir, 'optimize_rasters')
@@ -230,6 +229,10 @@ def main():
             },
         dependent_task_list=[efficiency_task],
         task_name='optimize')
+
+    task_graph.close()
+    task_graph.join()
+    sys.exit(-1)
 
     # TODO: evaluate the optimization rasters for total carbon
     sum_task_list = []
