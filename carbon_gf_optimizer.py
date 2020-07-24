@@ -249,7 +249,7 @@ def main():
     # * (mult new_forest_mask, norm_marginal_value_forest_gf) norm_marginal_value_new_forest_gf
     norm_mv_gf_task.join()
     norm_mv_nodata = pygeoprocessing.get_raster_info(
-        norm_marginal_value_forest_gf_path)
+        norm_marginal_value_forest_gf_path)['nodata'][0]
     norm_marginal_value_new_forest_gf = os.path.join(
         churn_dir, 'norm_marginal_value_new_forest_gf.tif')
     set_non_new_forest_to_zero_task = task_graph.add_task(
