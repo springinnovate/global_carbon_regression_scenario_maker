@@ -29,7 +29,7 @@ LOGGER = logging.getLogger(__name__)
 logging.getLogger('taskgraph').setLevel(logging.INFO)
 
 NODATA = -1
-EDGE_EFFECT_DIST_KM = 30  # max expected edge effect of carbon forest edge
+EDGE_EFFECT_DIST_KM = 3  # 1stdev range expected edge effect of carbon forest edge
 
 
 def where_zero_op(mask_array, value_array, value_nodata):
@@ -169,7 +169,7 @@ def main():
     pixel_length = pygeoprocessing.get_raster_info(
         marginal_value_raster_path)['pixel_size'][0]
 
-    # 2a) make 30km gaussian kernel
+    # 2a) make 3km gaussian kernel
     # pixel_length is in degrees and we want about a 30km decay so do that:
     # (deg/pixel  * km/deg * 1/30km)^-1
     # ~111km / degree
@@ -267,6 +267,11 @@ def main():
     # optimize
     LOGGER.debug('run that optimization on efficiency')
     optimize_dir = os.path.join(args.target_dir, 'optimize_rasters')
+    with open(os.path.join(
+            optimize_dir,
+            f'''sum_of_{os.path.basename(os.path.splitext(
+                norm_marginal_value_new_forest_gf)[0])}'''), 'w') as sum_file:
+        sum_file.write(f"{mv_sum_map['mv_forest'].get()}\n")
     task_graph.join()
     task_graph.add_task(
         func=pygeoprocessing.raster_optimization,
@@ -276,6 +281,7 @@ def main():
         kwargs={
             'goal_met_cutoffs': [float(x)/100.0 for x in range(1, 101)],
             'heap_buffer_size': 2**28,
+            'target_suffix': f'{EDGE_EFFECT_DIST_KM}km',
             'ffi_buffer_size': 2**10,
             },
         dependent_task_list=[set_non_new_forest_to_zero_task],
