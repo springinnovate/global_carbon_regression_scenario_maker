@@ -174,7 +174,7 @@ def main():
     # (deg/pixel  * km/deg * 1/30km)^-1
     # ~111km / degree
     pixel_radius = (pixel_length * 111 / EDGE_EFFECT_DIST_KM)**-1
-    kernel_raster_path = os.path.join(churn_dir, '')
+    kernel_raster_path = os.path.join(churn_dir, f'kernel_{pixel_radius}.tif')
     kernel_task = task_graph.add_task(
         func=make_kernel_raster,
         args=(pixel_radius, kernel_raster_path),
