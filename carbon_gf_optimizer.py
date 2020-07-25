@@ -266,7 +266,7 @@ def main():
 
     # optimize
     LOGGER.debug('run that optimization on efficiency')
-    optimize_dir = os.path.join(args.target_dir, 'optimize_rasters')
+    optimize_dir = os.path.join(args.target_dir, 'optimize_rasters_v2')
     try:
         os.makedirs(optimize_dir)
     except OSError:
