@@ -75,16 +75,16 @@ def main():
             LOGGER.info(f'{raster_path}: {raster_sum}')
         raster_id = os.path.basename(os.path.splitext(raster_path)[0])
         output_dir = os.path.join(args.target_dir, raster_id)
+        try:
+            os.makedirs(output_dir)
+        except OSError:
+            pass
         with open(os.path.join(output_dir, f'sum_of_{raster_id}'), 'w') as \
                 sum_file:
             sum_file.write(raster_sum)
 
         if args.target_val is not None:
             LOGGER.info(f'optimize to {args.target_val}')
-            try:
-                os.makedirs(output_dir)
-            except OSError:
-                pass
             target_threshold = args.target_val / raster_sum
             pygeoprocessing.raster_optimization(
                 [(raster_path, 1)], churn_dir, output_dir,
