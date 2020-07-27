@@ -73,10 +73,10 @@ def main():
         raster_sum = raster_sum_task.get()
         if args.sum:
             LOGGER.info(f'{raster_path}: {raster_sum}')
+        raster_id = os.path.basename(os.path.splitext(raster_path)[0])
+        output_dir = os.path.join(args.target_dir, raster_id)
         if args.target_val is not None:
             LOGGER.info(f'optimize to {args.target_val}')
-            raster_id = os.path.basename(os.path.splitext(raster_path)[0])
-            output_dir = os.path.join(args.target_dir, raster_id)
             try:
                 os.makedirs(output_dir)
             except OSError:
@@ -87,7 +87,13 @@ def main():
                 target_suffix=raster_id,
                 goal_met_cutoffs=numpy.linspace(0, target_threshold, 5)[1:],
                 heap_buffer_size=2**28, ffi_buffer_size=2**10)
-
+        else:
+            LOGGER.info('running to 100%')
+            pygeoprocessing.raster_optimization(
+                [(raster_path, 1)], churn_dir, output_dir,
+                target_suffix=raster_id,
+                goal_met_cutoffs=[float(x)/100.0 for x in range(1, 101)],
+                heap_buffer_size=2**28, ffi_buffer_size=2**10)
 
 if __name__ == '__main__':
     main()
