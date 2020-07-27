@@ -81,7 +81,7 @@ def main():
             pass
         with open(os.path.join(output_dir, f'sum_of_{raster_id}'), 'w') as \
                 sum_file:
-            sum_file.write(raster_sum)
+            sum_file.write(f'{raster_sum}\n')
 
         if args.target_val is not None:
             LOGGER.info(f'optimize to {args.target_val}')
