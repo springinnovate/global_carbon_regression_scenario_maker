@@ -286,7 +286,7 @@ def main():
             optimize_dir),
         kwargs={
             'goal_met_cutoffs': [float(x)/100.0 for x in range(1, 101)],
-            'heap_buffer_size': 2**28,
+            'heap_buffer_size': 2**28+2,
             'target_suffix': f'{EDGE_EFFECT_DIST_KM}km',
             'ffi_buffer_size': 2**10,
             },
