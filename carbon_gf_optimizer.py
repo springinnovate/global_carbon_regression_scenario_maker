@@ -286,10 +286,11 @@ def main():
             optimize_dir),
         kwargs={
             'goal_met_cutoffs': [float(x)/100.0 for x in range(1, 101)],
-            'heap_buffer_size': 2**28+1,
+            'heap_buffer_size': 2**28,
             'target_suffix': f'{EDGE_EFFECT_DIST_KM}km',
             'ffi_buffer_size': 2**10,
             },
+        transient_run=True,
         dependent_task_list=[set_non_new_forest_to_zero_task],
         task_name='optimize')
 
