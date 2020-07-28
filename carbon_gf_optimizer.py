@@ -108,6 +108,8 @@ def mask_with_range_op(
     """
     result = numpy.empty(value_array.shape)
     result[:] = target_nodata
+    nan_inf_mask = numpy.isnan(value_array) | numpy.isinf(value_array)
+    value_array[nan_inf_mask] = target_nodata
     valid_mask = (
         (value_array >= min_max_range[0]) &
         (value_array <= min_max_range[1]) &
