@@ -77,7 +77,8 @@ BASE_DATA_BUCKET_ROOT = 'gs://ecoshard-root/global_carbon_regression/inputs/'
 LULC_SCENARIO_URI_MAP = {
     'esa2014': 'gs://ecoshard-root/global_carbon_regression/ESACCI-LC-L4-LCCS-Map-300m-P1Y-2014-v2.0.7_smooth_compressed.tif',
     'restoration_limited': 'gs://nci-ecoshards/scenarios050420/restoration_limited_md5_372bdfd9ffaf810b5f68ddeb4704f48f.tif',
-    'ipcc_63': 'gs://nci-ecoshards/scenarios08032020/ESA_ipcc_scenario_63_md5_ca02be92fcecc5492035c19c0fa72e5b.tif'
+    'ipcc_63': 'gs://nci-ecoshards/scenarios08032020/ESA_ipcc_scenario_63_md5_ca02be92fcecc5492035c19c0fa72e5b.tif',
+    'regression_53': 'gs://nci-ecoshards/scenarios08032020/ESA_regression_scenario_53_md5_cda40e48061f38f1f029e2f748605b81.tif'
 }
 TARGET_PIXEL_SIZE = (10./3600., -10./3600.)
 FOREST_REGRESSION_LASSO_TABLE_URI = 'gs://ecoshard-root/global_carbon_regression/lasso_interacted_not_forest_gs1to100_nonlinear_alpha0-0001_params_namefix.csv'
