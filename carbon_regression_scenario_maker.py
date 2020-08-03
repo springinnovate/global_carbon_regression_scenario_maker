@@ -80,6 +80,13 @@ LULC_SCENARIO_URI_MAP = {
     'ipcc_63': 'gs://nci-ecoshards/scenarios08032020/ESA_ipcc_scenario_63_md5_ca02be92fcecc5492035c19c0fa72e5b.tif',
     'regression_53': 'gs://nci-ecoshards/scenarios08032020/ESA_regression_scenario_53_md5_cda40e48061f38f1f029e2f748605b81.tif'
 }
+
+MARGINAL_VALUE_MAPS = {
+    'restoration_limited': ('restoration_limited', 'esa2014'),
+    'ipcc_63': ('ipcc_63', 'esa2014'),
+    'regression_53': ('regression_53', 'esa2014'),
+}
+
 TARGET_PIXEL_SIZE = (10./3600., -10./3600.)
 FOREST_REGRESSION_LASSO_TABLE_URI = 'gs://ecoshard-root/global_carbon_regression/lasso_interacted_not_forest_gs1to100_nonlinear_alpha0-0001_params_namefix.csv'
 IPCC_CARBON_TABLE_URI = 'gs://ecoshard-root/global_carbon_regression/IPCC_carbon_table_md5_a91f7ade46871575861005764d85cfa7.csv'
@@ -649,19 +656,21 @@ def main():
         os.makedirs(marginal_value_dir)
     except OSError:
         pass
-    ipcc_carbon_marginal_value_raster = os.path.join(
-        marginal_value_dir, f'marginal_value_ipcc_{bounding_box_str}.tif')
-    task_graph.add_task(
-        func=pygeoprocessing.raster_calculator,
-        args=([
-            (masked_ipcc_carbon_raster_map['restoration_limited'], 1),
-            (masked_ipcc_carbon_raster_map['esa2014'], 1),
-            ],
-            sub_pos_op, ipcc_carbon_marginal_value_raster, gdal.GDT_Float32,
-            MULT_BY_COLUMNS_NODATA),
-        dependent_task_list=ipcc_mask_task_list,
-        target_path_list=[ipcc_carbon_marginal_value_raster],
-        task_name='make ipcc marginal value raster')
+    for marginal_value_id, (target_id, base_id) in MARGINAL_VALUE_MAPS.items():
+        marginal_value_raster = os.path.join(
+            marginal_value_dir,
+            f'marginal_value_{marginal_value_id}_{bounding_box_str}.tif')
+        task_graph.add_task(
+            func=pygeoprocessing.raster_calculator,
+            args=([
+                (masked_ipcc_carbon_raster_map[target_id], 1),
+                (masked_ipcc_carbon_raster_map[base_id], 1),
+                ],
+                sub_pos_op, marginal_value_raster, gdal.GDT_Float32,
+                MULT_BY_COLUMNS_NODATA),
+            dependent_task_list=ipcc_mask_task_list,
+            target_path_list=[marginal_value_raster],
+            task_name=f'make {marginal_value_id} marginal value raster')
 
     # TODO: mask out forest from IPCC to have a forest only map
     # TODO: set up raster calculation to subtract IPCC forest only from
