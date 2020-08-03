@@ -1,10 +1,18 @@
 """Create scenarios from base LULC given raster masks of new forest."""
 import argparse
+import logging
 
 import numpy
 import pygeoprocessing
 
 FOREST_LULC = 50
+
+logging.basicConfig(
+    level=logging.DEBUG,
+    format=(
+        '%(asctime)s (%(relativeCreated)d) %(levelname)s %(name)s'
+        ' [%(funcName)s:%(lineno)d] %(message)s'))
+LOGGER = logging.getLogger(__name__)
 
 
 def replace_where(base_array, mask_array, replacement_val):
