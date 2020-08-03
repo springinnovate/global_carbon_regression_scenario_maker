@@ -20,8 +20,8 @@ def main(args):
         args.base_lulc_raster_path)
     pygeoprocessing.raster_calculator(
         [(args.base_lulc_raster_path, 1),
-         (args.forest_mask_raster_path, 1), (FOREST_LULC, )], replace_where,
-        args.target_raster_path, base_raster_info['datatype'],
+         (args.forest_mask_raster_path, 1), (FOREST_LULC, 'raw')],
+        replace_where, args.target_raster_path, base_raster_info['datatype'],
         base_raster_info['nodata'][0])
 
 
