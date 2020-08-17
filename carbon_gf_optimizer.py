@@ -157,15 +157,14 @@ def main():
     # 1a) mask forest from marginal value map and set values outside of reasonable ranges to nodata
     #   - marginal_value_map, forest_mask -> mv_forest_only.tif
     marginal_value_raster_path = args.marginal_value_raster
-    forest_mask_raster_path = os.path.join(
-        args.path_to_forest_mask_data,
-        'mask_of_forest_10sec_restoration_limited.tif')
     marginal_value_forest_raster_path = os.path.join(
         churn_dir, 'marginal_value_forest.tif')
+
     marginal_value_forest_task = task_graph.add_task(
         func=pygeoprocessing.raster_calculator,
         args=(
-            [(marginal_value_raster_path, 1), (forest_mask_raster_path, 1),
+            [(marginal_value_raster_path, 1),
+             (args.path_to_scenario_forest_mask, 1),
              ((0, 2e5), 'raw'), (NODATA, 'raw')], mask_with_range_op,
             marginal_value_forest_raster_path, gdal.GDT_Float32, NODATA),
         target_path_list=[marginal_value_forest_raster_path],
