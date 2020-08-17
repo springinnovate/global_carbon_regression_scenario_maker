@@ -11,6 +11,7 @@ import sys
 
 from osgeo import gdal
 import pygeoprocessing
+import pygeoprocessing.multiprocessing
 import numpy
 import scipy
 import taskgraph
@@ -63,7 +64,7 @@ def normalize_raster(base_raster_path, constant, target_raster_path):
     """Multiply constant by base raster path."""
     base_nodata = pygeoprocessing.get_raster_info(
         base_raster_path)['nodata'][0]
-    pygeoprocessing.raster_calculator(
+    pygeoprocessing.multiprocessing.raster_calculator(
         [(base_raster_path, 1), (constant, 'raw'), (base_nodata, 'raw')],
         mult_const, target_raster_path, gdal.GDT_Float32, base_nodata)
 
@@ -161,7 +162,7 @@ def main():
         churn_dir, 'marginal_value_forest.tif')
 
     marginal_value_forest_task = task_graph.add_task(
-        func=pygeoprocessing.raster_calculator,
+        func=pygeoprocessing.multiprocessing.raster_calculator,
         args=(
             [(marginal_value_raster_path, 1),
              (args.path_to_scenario_forest_mask, 1),
@@ -236,7 +237,7 @@ def main():
         churn_dir, 'new_forest_mask.tif')
 
     new_forest_mask_task = task_graph.add_task(
-        func=pygeoprocessing.raster_calculator,
+        func=pygeoprocessing.multiprocessing.raster_calculator,
         args=(
             [(args.path_to_scenario_forest_mask, 1),
              (args.path_to_base_forest_mask, 1),
@@ -252,7 +253,7 @@ def main():
     norm_marginal_value_new_forest_gf = os.path.join(
         churn_dir, 'norm_marginal_value_new_forest_gf.tif')
     set_non_new_forest_to_zero_task = task_graph.add_task(
-        func=pygeoprocessing.raster_calculator,
+        func=pygeoprocessing.multiprocessing.raster_calculator,
         args=(
             [(new_forest_mask_raster_path, 1),
              (norm_marginal_value_forest_gf_path, 1),
