@@ -117,6 +117,12 @@ def main():
     parser.add_argument(
         '--marginal_value_raster', help='path to marginal value raster')
     parser.add_argument(
+        '--path_to_scenario_forest_mask', help='path_to_scenario_forest_mask',
+        required=True)
+    parser.add_argument(
+        '--path_to_base_forest_mask', help='path_to_base_forest_mask',
+        required=True)
+    parser.add_argument(
         '--path_to_forest_mask_data',
         help='path to the scenario clipped dir of the forest masks.')
     parser.add_argument(
@@ -162,18 +168,15 @@ def main():
         task_name='marginal value average to 30km')
 
     # create count of difference of forest masks from esa to restoration
-    restoration_mask_raster_path = os.path.join(
-        args.path_to_forest_mask_data,
-        'mask_of_forest_10sec_restoration_limited.tif')
-    esa_mask_raster_path = os.path.join(
-        args.path_to_forest_mask_data, 'mask_of_forest_10sec_esa2014.tif')
+    scenario_forest_raster_path = args.path_to_scenario_forest_mask
+    base_forest__raster_path = args.path_to_base_forest_mask
     new_forest_mask_raster_path = os.path.join(
         churn_dir, f'{marginal_value_id}_new_forest_mask.tif')
-    LOGGER.info('count difference of forest mask from esa to restoration')
+    LOGGER.info('count difference of scenaroi forest mask from base')
     new_forest_mask_task = task_graph.add_task(
         func=pygeoprocessing.raster_calculator,
         args=(
-            [(restoration_mask_raster_path, 1), (esa_mask_raster_path, 1)],
+            [(scenario_forest_raster_path, 1), (base_forest__raster_path, 1)],
             new_forest_mask_op, new_forest_mask_raster_path, gdal.GDT_Float32,
             NODATA),
         target_path_list=[new_forest_mask_raster_path],
