@@ -166,7 +166,7 @@ def main():
         args=(
             [(marginal_value_raster_path, 1),
              (args.path_to_scenario_forest_mask, 1),
-             ((0, 2e5), 'raw'), (NODATA, 'raw')], mask_with_range_op,
+             ((0, 360), 'raw'), (NODATA, 'raw')], mask_with_range_op,
             marginal_value_forest_raster_path, gdal.GDT_Float32, NODATA),
         target_path_list=[marginal_value_forest_raster_path],
         task_name=f'calculate marginal value masked by forest only')
