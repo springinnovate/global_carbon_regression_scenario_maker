@@ -33,14 +33,14 @@ EDGE_EFFECT_DIST_KM = 3  # 1stdev range expected edge effect of carbon forest ed
 
 
 def where_zero_op(mask_array, value_array, value_nodata):
-    """set value array to nodata where mask is not 1."""
+    """Set value array to nodata where mask is not 1."""
     result = numpy.copy(value_array)
     result[mask_array != 1] = value_nodata
     return result
 
 
 def mask_new_a(array_a, array_b, nodata):
-    """calc array_a-array_b but ignore nodata."""
+    """Calc array_a-array_b but ignore nodata."""
     valid_mask = (
         ~numpy.isclose(array_a, nodata) &
         ~numpy.isclose(array_b, nodata))
@@ -137,8 +137,11 @@ def main():
     parser.add_argument(
         '--marginal_value_raster', help='path to marginal value raster')
     parser.add_argument(
-        '--path_to_forest_mask_data',
-        help='path to the scenario clipped dir of the forest masks.')
+        '--path_to_scenario_forest_mask', help='path_to_scenario_forest_mask',
+        required=True)
+    parser.add_argument(
+        '--path_to_base_forest_mask', help='path_to_base_forest_mask',
+        required=True)
     parser.add_argument(
         '--n_workers', type=int, default=multiprocessing.cpu_count(),
         help='number of workers to taskgraph')
@@ -226,14 +229,8 @@ def main():
 
     # 1b) new_forest_mask
     #   - reforest_forest_mask - esa_forest_mask -> new_forest_mask.tif
-    restoration_mask_raster_path = os.path.join(
-        args.path_to_forest_mask_data,
-        'mask_of_forest_10sec_restoration_limited.tif')
-    esa_mask_raster_path = os.path.join(
-        args.path_to_forest_mask_data,
-        'mask_of_forest_10sec_esa2014.tif')
     mask_info = pygeoprocessing.get_raster_info(
-        restoration_mask_raster_path)
+        args.scenario_forest_mask_raster_path)
     mask_nodata = mask_info['nodata'][0]
 
     new_forest_mask_raster_path = os.path.join(
@@ -242,7 +239,8 @@ def main():
     new_forest_mask_task = task_graph.add_task(
         func=pygeoprocessing.raster_calculator,
         args=(
-            [(restoration_mask_raster_path, 1), (esa_mask_raster_path, 1),
+            [(args.path_to_scenario_forest_mask, 1),
+             (args.path_to_base_forest_mask, 1),
              (mask_nodata, 'raw')], mask_new_a,
             new_forest_mask_raster_path, mask_info['datatype'], mask_nodata),
         target_path_list=[new_forest_mask_raster_path],
