@@ -18,9 +18,9 @@ import sys
 import tempfile
 
 from osgeo import gdal
-import pygeoprocessing
+from ecoshard import geoprocessing
 import numpy
-import taskgraph
+from ecoshard import taskgraph
 
 
 gdal.SetCacheMax(2**27)
@@ -42,10 +42,10 @@ def sum_of_masked_op(mask_path, value_raster_path, churn_dir):
     temp_dir = tempfile.mkdtemp(dir=churn_dir)
     mask_align_path = os.path.join(temp_dir, 'align_mask.tif')
     value_align_path = os.path.join(temp_dir, 'value_align.tif')
-    target_pixel_size = pygeoprocessing.get_raster_info(
+    target_pixel_size = geoprocessing.get_raster_info(
         value_raster_path)['pixel_size']
 
-    pygeoprocessing.align_and_resize_raster_stack(
+    geoprocessing.align_and_resize_raster_stack(
         [mask_path, value_raster_path],
         [mask_align_path, value_align_path], ['near']*2,
         target_pixel_size, 'intersection')
@@ -56,7 +56,7 @@ def sum_of_masked_op(mask_path, value_raster_path, churn_dir):
     value_band = value_raster.GetRasterBand(1)
 
     sum_val = 0.0
-    for offset_dict in pygeoprocessing.iterblocks(
+    for offset_dict in geoprocessing.iterblocks(
             (mask_align_path, 1), offset_only=True):
         mask_array = mask_band.ReadAsArray(**offset_dict)
         value_array = value_band.ReadAsArray(**offset_dict)
@@ -100,9 +100,9 @@ def new_forest_mask_op(restoration_forest_mask, base_forest_mask):
 
 def calc_raster_sum(raster_path):
     """Return the sum of the values in raster_path."""
-    nodata = pygeoprocessing.get_raster_info(raster_path)['nodata'][0]
+    nodata = geoprocessing.get_raster_info(raster_path)['nodata'][0]
     raster_sum = 0.0
-    for _, raster_array in pygeoprocessing.iterblocks((raster_path, 1)):
+    for _, raster_array in geoprocessing.iterblocks((raster_path, 1)):
         raster_sum += numpy.sum(
             raster_array[~numpy.isclose(raster_array, nodata)])
     return raster_sum
@@ -160,7 +160,7 @@ def main():
         churn_dir, f'{marginal_value_id}_30km_average.tif')
     LOGGER.info('warp marginal value to 30km size')
     marginal_value_30km_task = task_graph.add_task(
-        func=pygeoprocessing.warp_raster,
+        func=geoprocessing.warp_raster,
         args=(
             args.marginal_value_raster, pixel_size_30km,
             marginal_value_30km_average_raster_path, 'average'),
@@ -174,7 +174,7 @@ def main():
         churn_dir, f'{marginal_value_id}_new_forest_mask.tif')
     LOGGER.info('count difference of scenaroi forest mask from base')
     new_forest_mask_task = task_graph.add_task(
-        func=pygeoprocessing.raster_calculator,
+        func=geoprocessing.raster_calculator,
         args=(
             [(scenario_forest_raster_path, 1), (base_forest__raster_path, 1)],
             new_forest_mask_op, new_forest_mask_raster_path, gdal.GDT_Float32,
@@ -190,7 +190,7 @@ def main():
 
     LOGGER.debug('warp new forest mask to 30km')
     new_forest_30km_task = task_graph.add_task(
-        func=pygeoprocessing.warp_raster,
+        func=geoprocessing.warp_raster,
         args=(
             new_forest_mask_raster_path, pixel_size_30km,
             new_forest_mask_30km_raster_path, 'average'),
@@ -206,7 +206,7 @@ def main():
     LOGGER.debug(
         'divide marginal value by new forest average to get efficiency')
     efficiency_task = task_graph.add_task(
-        func=pygeoprocessing.raster_calculator,
+        func=geoprocessing.raster_calculator,
         args=(
             [(marginal_value_30km_average_raster_path, 1),
              (new_forest_mask_30km_raster_path, 1)],
@@ -221,7 +221,7 @@ def main():
     optimize_dir = os.path.join(args.target_dir, 'optimize_rasters')
     task_graph.join()
     task_graph.add_task(
-        func=pygeoprocessing.raster_optimization,
+        func=geoprocessing.raster_optimization,
         args=(
             [(efficiency_marginal_value_raster_path, 1)], churn_dir,
             optimize_dir),
